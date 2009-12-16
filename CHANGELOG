@@ -1,0 +1,10 @@
+**Date: 2009-12-16 13:23**
+
+Subject: Version 1.0
+--------------------
+
+First release of todoapp.
+Contains one level of subtasks. However, subtasks are stored on same
+line, so the file is not very hand-editable if subtasks are used.
+
+* * *
