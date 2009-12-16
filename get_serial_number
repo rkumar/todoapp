@@ -1,0 +1,91 @@
+#!/bin/bash
+## returns a serial number based on a file
+## can be used for programs requiring a running id
+## different apps can have their own serial numbers
+## different folders can have their serial number file
+# == PROCESS OPTIONS ==
+Revision="0.1"
+Date="2009-11-06"
+arg0=$(basename "$0")
+istart=1
+increment=1
+irestart=999999
+MYDIR=~/bin
+VERBOSE_FLAG=0
+app="GENERAL"
+
+usage()
+{
+    sed -e 's/^    //' <<EndUsage
+    Usage: $arg0 [OPTIONS]
+    OPTIONS: 
+             -a application name (separate counter for different applications
+             -s start
+             -i increment
+             -r reset
+             -d directory for serial_number file
+    Try '$arg0 -h' for more information.
+EndUsage
+    exit 1
+}
+help()
+{
+    sed -e 's/^    //' <<EndUsage
+    $arg0
+    Returns a serial number based on a file 'serial_number'
+    Can be used for programs requiring a running id
+    Different apps can have their own serial numbers
+        $arg0 -a ACCOUNTS
+    different folders can have their serial number file
+        $arg0 -d /Users/ram/projects
+    Without application option, returns one serial number sequence to all callers
+        $arg0 
+        
+EndUsage
+}
+
+
+while getopts hVvd:a:s:i:r: flag
+do
+    case "$flag" in
+    (h) help; exit 0;;
+    (V) echo "$arg0: version $Revision ($Date) Author: rkumar"; exit 0;;
+    (v) VERBOSE_FLAG=1;;
+    (a) app="$OPTARG";;
+    (i) increment="$OPTARG";;
+    (s) istart="$OPTARG";;
+    (r) irestart="$OPTARG";;
+    (d) MYDIR="$OPTARG";;
+    (*) usage;;
+    esac
+done
+shift $(($OPTIND - 1))
+file=$MYDIR/serial_numbers
+[ -f "$file" ] || echo "GENERAL:0" > "$file"
+## user mentioned an app
+[ -z "$app" ] || {
+    [ $VERBOSE_FLAG -gt 0 ] && echo "$arg0: App mentioned $app"
+   ## check if app exists, if not initialize
+   exists=$(grep "^$app" "$file")
+   [ -z "$exists" ] && {
+       [ $VERBOSE_FLAG -gt 0 ] && echo "$arg0: No entry for $app, creating one"
+      let result=$istart+$increment
+      echo "$app:$result" >> "$file"
+      echo $istart
+      exit 0
+   }
+   [ $VERBOSE_FLAG -gt 0 ] && echo "$arg0: Entry for app found:>> $exists"
+   ## extract counter
+   ctr=`expr "$exists" : '.*:\([0-9]\+\)'`
+   let result=$ctr+$increment
+   ## update serial number in file
+   sed -i.bak -e "/$app/s/:$ctr$/:$result/" $file
+   echo $ctr
+   exit 0
+
+}
+
+#[ $VERBOSE_FLAG -gt 0 ] && echo "$arg0: No app mentioned, general case"
+[ $VERBOSE_FLAG -gt 0 ] && echo "$arg0: Should not cme here !!"
+
+
