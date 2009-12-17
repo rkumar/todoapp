@@ -133,6 +133,14 @@ cleanup ()
 add ()
 {
    text="$*"  # rem _
+   if [[ -z "$text" ]]; then
+      echo -n "Enter todo:"
+      read text
+      if [[ -z "$text" ]]; then
+         echo "Got nothing. Exiting."
+         exit 1
+      fi
+   fi
    appname=$( basename $( pwd ) )
    item=$( get_serial_number -a "$appname" -d "$(pwd)" )
    paditem=$( printf "%3s" $item )
@@ -177,6 +185,7 @@ list ()
       /\[ \] (B)/s/.*/${COLOR_WHITE}&${COLOR_DEFAULT}/; \
       /\[ \] (C)/s/.*/${COLOR_CYAN}&${COLOR_DEFAULT}/; \
       /\[ \] (D)/s/.*/${COLOR_GREEN}&${COLOR_DEFAULT}/; \
+      /\[ \] ([E-Z])/s/.*/${COLOR_BROWN}&${COLOR_DEFAULT}/; \
       s/\[X\]/${COL_BG_RED}[1]${COL_BG_NORM}/" 
       )
    fi
@@ -506,7 +515,6 @@ old_addsub ()
 # ---------------------------------------------------------------------------- #
 delsub ()
 {
-   # TODO - what about deleting all child tasks
    errmsg="usage: $APPNAME delsub ITEM#.SUBTASK#" # FIXME errmsgs in all sub cases
    fullitem="$1"  # rem _
    echo "item:$fullitem"
@@ -626,7 +634,7 @@ case $action in
       status "$@" ;;
    "pri" | "p")
       priority "$@" ;;
-   "delete")
+   "del" | "delete")
       delete "$@" ;;
    "depri" | "dep")
       depri "$@" ;;
