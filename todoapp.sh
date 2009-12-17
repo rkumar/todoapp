@@ -10,7 +10,7 @@
 #           v1.0.0 Initial Release                      #
 #           v2.0.0 subtask in separate line             #
 #*******************************************************#
-#
+# TODO: all functions should now be the same, avoid subtask subcommand
 # Minimal installation, creates a file in the current
 #+ folder, so you can have todo files in multiple projects
 
@@ -151,6 +151,7 @@ add ()
 # @param   : param2
 # @return  : returns 
 # ---------------------------------------------------------------------------- #
+# # TODO --hide-sub or --level/depth
 list ()
 {
    #items=$( sort -t$'\t' -k2 "$TODO_FILE" )
@@ -337,6 +338,17 @@ markchildren ()
 {
    local item="$1"
    local status="$2"
+   if grep -q "^ *- ${item}\.[0-9\.]*${TAB}" "$TODO_FILE"; then
+      :
+   else
+      return 0
+   fi
+   echo -n "Do you wish to mark subtasks of $item" '[y/n] ' ; read ans
+   case "$ans" in
+      y*|Y*) : ;;
+      *) return 0;;
+   esac
+   
    sed -i.bak "/^ *- ${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        echo "Subtasks of Item $item marked as $status"
@@ -510,6 +522,8 @@ subtask ()
 
 
 
+
+
 ## ADD functions above
 ## -- getopts stuff -- ##
 while [[ $1 = -* ]]; do
@@ -555,19 +569,6 @@ done
 action=$( echo "$1" | tr 'A-Z' 'a-z' )
 shift
 
-## check if file exists, else ask and create it.
-#if [[ $action != "help" ]]; then
-   #if [[ ! -f "$TODO_FILE" ]]; then
-      #echo -n "$TODO_FILE not found in $(pwd). Should I create it? y/n:"
-      #read yn
-      #if [[ $yn =~ [Yy] ]]; then
-         #touch "$TODO_FILE"
-      #else
-         #echo "exiting."
-         #exit
-      #fi
-   #fi
-#fi
 case $action in
    "list")
       check_file
@@ -584,6 +585,8 @@ case $action in
       depri "$@" ;;
    "subtask" | "sub")
       subtask "$@" ;;
+   "tag" )
+      tag "$@" ;;
    "help")
       help;;
    * )
