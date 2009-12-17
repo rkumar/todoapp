@@ -27,6 +27,7 @@ DATE="2009-12-16"
 AUTHOR="rkumar"
 today=$( date '+%Y-%m-%d' )
 DELIM=$'\t'
+TAB="	"
 shopt -s extglob
 
 USAGE="$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] action #ITEM"
@@ -205,6 +206,7 @@ delete ()
       ;;
       *) echo "No item deleted"  ;;
    esac
+   delchildren $item
    
 }
 # ---------------------------------------------------------------------------- #
@@ -282,6 +284,7 @@ status ()
     else
        echo "Operation failed. "
     fi
+    markchildren "$item" $newstatus
     cleanup
 }
 validate_subtask ()
@@ -295,9 +298,9 @@ validate_subtask ()
    #[[ "$item" = +([0-9]) ]] || die "Item should be numeric. $errmsg"
    check_file
    #paditem=$( printf "%3s" $item )
-   todo=$( grep -n "^ *- $item" "$TODO_FILE" )
+   todo=$( grep -n "^ *- $item${TAB}" "$TODO_FILE" )
    if [[ -z "$todo" ]]; then
-      die "Item $item not found in $TODO_FILE. $errmsg"
+      die "Subtask $item not found in $TODO_FILE. $errmsg"
    fi
    lineno=$( echo "$todo" | cut -d: -f1 )
    todo=$( echo "$todo" | cut -d: -f2 )
@@ -325,8 +328,31 @@ marksub ()
     else
        echo "Operation failed. "
     fi
+    markchildren "$fullitem" $newstatus
     cleanup
 
+}
+
+markchildren ()
+{
+   local item="$1"
+   local status="$2"
+   sed -i.bak "/^ *- ${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
+    if [  $? -eq 0 ]; then
+       echo "Subtasks of Item $item marked as $status"
+    else
+       echo "Operation failed. "
+    fi
+}
+delchildren ()
+{
+   local item="$1"
+   sed -i.bak "/^ *- ${item}\.[0-9\.]*${TAB}/d" "$TODO_FILE"
+    if [  $? -eq 0 ]; then
+       echo "Subtasks of Item $item deleted"
+    else
+       echo "Operation failed. "
+    fi
 }
 
 addsub ()
@@ -439,6 +465,7 @@ delsub ()
    else
        echo "Operation failed. "
    fi
+   delchildren "$fullitem"
    cleanup
    # note: i am leaving a C-a there, since there could be other subtasks
    # also, its required to keep the numbering going 
