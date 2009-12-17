@@ -6,21 +6,24 @@
 #           Yet another small, cute todo app            #
 #           Licensed under GPL                          #
 #           http://www.gnu.org/copyleft/gpl.html        #
+#                                                       #
+#           v1.0.0 Initial Release                      #
+#           v2.0.0 subtask in separate line             #
 #*******************************************************#
 #
 # Minimal installation, creates a file in the current
 #+ folder, so you can have todo files in multiple projects
 
 # the only configuration the user need do. The name of the output file
-TODO_FILE="TODOITEMS.txt"
+TODO_FILE="TODO2.txt"
 COLORIZE=1   # if you want colored output, else comment out
 # COLORIZE requires external file colors.sh in PATH
 # get_serial_number required in path
 
 FULLAPPNAME="$0"
 APPNAME=$( basename $0 )
-VERSION="1.0.0"
-DATE="2009-12-14"
+VERSION="2.0.0"
+DATE="2009-12-16"
 AUTHOR="rkumar"
 today=$( date '+%Y-%m-%d' )
 DELIM=$'\t'
@@ -241,7 +244,9 @@ depri ()
    errmsg="usage: $APPNAME depri #item"
    validate_item "$item" "$errmsg"
    # if a priority exists, remove it
-   if grep -q "\[.\] ([A-Z])" <<< "$todo"; then
+   #if grep -q "\[.\] ([A-Z])" <<< "$todo"; then
+   TAB="	" # tab
+   if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
       todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
       sed -i.bak "/$paditem/s/.*/$todo/" "$TODO_FILE"
       if [  $? -eq 0 ]; then
@@ -316,6 +321,76 @@ marksub ()
 }
 
 addsub ()
+{
+   fullitem=$1
+   TAB="	" # tab
+   DELIM="${TAB}"
+   shift
+   subtask="$*"
+   #validate_item "$item" "$errmsg"
+   #validate_subtask "$fullitem" "$errmsg"
+   full=$( grep -n -e "- ${fullitem}\.[0-9]*${TAB}" "$TODO_FILE" | tail -1 )
+   last=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
+   echo "full:$full"
+   echo "last:$last"
+   if [[ -z "$full" ]]; then
+      full=$( grep -n -e " ${fullitem}${TAB}" $TODO_FILE )
+      prev=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
+      echo "prev: $prev"
+      [[ -z "$prev" ]] && { echo "error $fullitem"; exit 1; }
+      last="$prev"
+      line=$( expr "$full" : '^\([0-9]\+\):' )
+      indent=$( expr "$full" : '^[0-9]\+:\( \+\)')
+      indent+="   "
+      echo "x${indent}y"
+      # get higher level
+   else
+      lastchild=$( grep -n -e "- ${fullitem}\.[0-9]*\.[0-9]*" "$TODO_FILE" | tail -1 )
+      if [[ -z "$lastchild" ]]; then
+         line=$( expr "$full" : '^\([0-9]\+\):' )
+      else
+         line=$( expr "$lastchild" : '^\([0-9]\+\):' )
+      fi
+      indent=$( expr "$full" : '^[0-9]\+:\( \+\)')
+      #indent=$( expr "$last" : '\([^-0-9]\+\)' )
+      echo "X${indent}Y"
+   fi
+      echo ""
+      echo "last:$last"
+      highest=$( echo "$last" | cut -d' ' -f2 )
+      echo "line: $line, highest: $highest"
+      base=$(expr $highest : '.*\.\([0-9]\+\)$')
+      len=$(( ${#highest}-${#base}-0 ))
+      echo "len: $len"
+      part1="${highest:0:${len}}"
+      (( base++ ))
+      echo "next: $base, ${part1}${base}"
+      newnum="${part1}${base}"
+   [ ! -z "$project" ] && project=" +${project}"
+   [ ! -z "$component" ] && component=" @${component}"
+   [ ! -z "$priority" ] && priority=" (${priority})"
+   #newtext="${paditem}${DELIM}[ ]${priority}${project}${component} $text ($today)"
+   newtodo="${indent}- ${newnum}${DELIM}[ ]${priority}${project}${component} ${subtask} ($today)"
+   echo "LINE:"
+   echo "$newtodo"
+   [[ -z "$line" ]] && { echo "line blank!" ; exit 1; }
+ex - "$TODO_FILE"<<!
+${line}a
+$newtodo
+.
+x
+!
+   
+    if [  $? -eq 0 ]; then
+       echo "Subtask added to Item $fullitem."
+       cat "$TODO_FILE"
+    else
+       echo "Operation failed. "
+    fi
+    cleanup
+
+}
+old_addsub ()
 {
    item=$1
    errmsg="usage: $APPNAME addsub #item text"
