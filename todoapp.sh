@@ -437,6 +437,47 @@ x
     cleanup
 
 }
+subpriority ()
+{
+   item="$2"  # 
+   newpri="$1"
+   TAB="	" # tab
+   errmsg="usage: $APPNAME priority [A-Z] #item"
+   newpri=$( printf "%s\n" "$newpri" | tr 'a-z' 'A-Z' )
+   [[ "$newpri" = @([A-Z]) ]] || die "$errmsg"
+   validate_subtask "$item" "$errmsg"
+   # if a priority exists, remove it. Remove only main task pri
+   if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
+      todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
+   fi
+   # add new priority exists
+   todo=$( echo "$todo" | sed "s/] /] ($newpri) /" )
+   sed -i.bak "/^ *- $item${TAB}/s/.*/$todo/" "$TODO_FILE"
+   if [  $? -eq 0 ]; then
+      echo "Change priority for $item successful"
+   fi
+   cleanup
+}
+subdepri ()
+{
+   item="$2"  # 
+   newpri="$1"
+   TAB="	" # tab
+   errmsg="usage: $APPNAME priority [A-Z] #item"
+   newpri=$( printf "%s\n" "$newpri" | tr 'a-z' 'A-Z' )
+   [[ "$newpri" = @([A-Z]) ]] || die "$errmsg"
+   validate_subtask "$item" "$errmsg"
+   # if a priority exists, remove it. Remove only main task pri
+   if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
+      todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
+      sed -i.bak "/^ *- $item${TAB}/s/.*/$todo/" "$TODO_FILE"
+      if [  $? -eq 0 ]; then
+         echo "Change priority for $item successful"
+      fi
+      cleanup
+   fi
+   # remove priority 
+}
 old_addsub ()
 {
    item=$1
@@ -513,6 +554,12 @@ subtask ()
          ;;
       "mark" | "status")
          marksub "$@"
+         ;;
+      "pri" | "priority")
+         subpriority "$@"
+         ;;
+      "depri" )
+         subdepri "$@"
          ;;
       * )
       echo "$action unknown. Please use one of add, del, mark." 1>&2   
