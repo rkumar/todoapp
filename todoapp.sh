@@ -106,6 +106,15 @@ validate_item ()
       die "Item $item not found in $TODO_FILE. $errmsg"
    fi
 }
+item_exists () {
+   local item=$1
+   paditem=$( printf "%3s" $item )
+   todo=$( grep "^$paditem" "$TODO_FILE" )
+   if [[ -z "$todo" ]]; then
+      return 1
+   fi
+   return 0
+}
 
 # ---------------------------------------------------------------------------- #
 # die
@@ -317,6 +326,15 @@ validate_subtask ()
    #item=$( expr $fullitem : '\([0-9]\+\)\.')
    #validate_item "$item" "$errmsg"
 }
+subtask_exists ()
+{
+   local item=$1
+   todo=$( grep -n "^ *- $item${TAB}" "$TODO_FILE" )
+   if [[ -z "$todo" ]]; then
+      return 1
+   fi
+   return 0
+}
 marksub ()
 {
    fullitem="$1"  
@@ -385,22 +403,30 @@ addsub ()
    subtask="$*"
    #validate_item "$item" "$errmsg"
    #validate_subtask "$fullitem" "$errmsg"
+   ## Is there a level below this one. Get the last one.
    full=$( grep -n -e "- ${fullitem}\.[0-9]*${TAB}" "$TODO_FILE" | tail -1 )
-   last=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
-   echo "full:$full"
-   echo "last:$last"
-   if [[ -z "$full" ]]; then
+   ## extract number
+      echo "full:$full"
+   if [[ -z "$full" ]]; then # no level below this one
       full=$( grep -n -e " ${fullitem}${TAB}" $TODO_FILE )
-      prev=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
-      echo "prev: $prev"
-      [[ -z "$prev" ]] && { echo "error $fullitem"; exit 1; }
+      echo "2 full:$full"
+      #prev=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
+      prev=$(echo "$full" | grep -o -e " *[0-9\.]\+${TAB}" | sed "s/[ $TAB]//g") 
+      echo "prev: $prev."
+      [[ -z "$prev" ]] && { echo "Error. Can't find $fullitem"; exit 1; }
       last="$prev"
       line=$( expr "$full" : '^\([0-9]\+\):' )
       indent=$( expr "$full" : '^[0-9]\+:\( \+\)')
       indent+="   "
       echo "x${indent}y"
+      newnum="${last}.1"
+      echo "newnum:$newnum"
       # get higher level
    else
+      # there is a level below this one. get last.
+      last=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
+      echo "last:$last"
+      # get line number of last
       lastchild=$( grep -n -e "- ${fullitem}\.[0-9]*\.[0-9]*" "$TODO_FILE" | tail -1 )
       if [[ -z "$lastchild" ]]; then
          line=$( expr "$full" : '^\([0-9]\+\):' )
@@ -410,7 +436,6 @@ addsub ()
       indent=$( expr "$full" : '^[0-9]\+:\( \+\)')
       #indent=$( expr "$last" : '\([^-0-9]\+\)' )
       echo "X${indent}Y"
-   fi
       echo ""
       echo "last:$last"
       highest=$( echo "$last" | cut -d' ' -f2 )
@@ -420,8 +445,11 @@ addsub ()
       echo "len: $len"
       part1="${highest:0:${len}}"
       (( base++ ))
-      echo "next: $base, ${part1}${base}"
-      newnum="${part1}${base}"
+      echo "next: $base, ${part1}.${base}"
+      newnum="${part1}.${base}"
+      newnum=$( echo $newnum | tr -s '\.' )
+      echo "2 newnum:$newnum"
+   fi
    [ ! -z "$project" ] && project=" +${project}"
    [ ! -z "$component" ] && component=" @${component}"
    [ ! -z "$priority" ] && priority=" (${priority})"
@@ -574,6 +602,28 @@ subtask ()
       ;;
    esac
 }
+renumber ()
+{
+   # only for top level task
+   from_item=$1
+   to_item=$2
+   item_exists $from_item
+   [[ $? -eq 1  ]] && { 
+      subtask_exists $from_item
+      [[ $? -eq 1  ]] && { die "Error: $from_item does not exist."; }
+   }
+   echo "OK. $from_item exists $todo"
+   old_todo="$todo"
+   item_exists $to_item
+   [[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
+   subtask_exists $to_item
+   [[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
+   echo "all seems okay:$old_todo"
+   sed -i.bak "/${from_item}.*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
+#   sed -i.bak "/${from_item}\.[0-9\.]*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
+}
+
+
 
 
 
@@ -632,16 +682,18 @@ case $action in
       add "$@" ;;
    "mark" | "status")
       status "$@" ;;
-   "pri" | "p")
+   "p" | "pri" )
       priority "$@" ;;
    "del" | "delete")
       delete "$@" ;;
-   "depri" | "dep")
+   "dep" | "depri")
       depri "$@" ;;
-   "subtask" | "sub")
+   "sub" | "subtask")
       subtask "$@" ;;
    "tag" )
       tag "$@" ;;
+   "renum" | "renumber" )
+      renumber "$@" ;;
    "help")
       help;;
    * )
