@@ -416,8 +416,10 @@ addsub ()
       [[ -z "$prev" ]] && { echo "Error. Can't find $fullitem"; exit 1; }
       last="$prev"
       line=$( expr "$full" : '^\([0-9]\+\):' )
-      indent=$( expr "$full" : '^[0-9]\+:\( \+\)')
-      indent+="   "
+      #indent=$( expr "$full" : '^[0-9]\+:\( \+\)')
+      indent=$( expr "$full" : '^[0-9]\+:\([^\[]\+\)')
+      indent+="    "
+      indent=$( echo "$indent" | sed 's/./ /g' )
       echo "x${indent}y"
       newnum="${last}.1"
       echo "newnum:$newnum"
@@ -605,22 +607,35 @@ subtask ()
 renumber ()
 {
    # only for top level task
+   errmsg "Usage: renumber FROM_ITEM# TO_ITEM# (Note: from and to are top level tasks"
    from_item=$1
    to_item=$2
+   [[ "$from_item" = +([0-9]) ]] || die "Item should be a top level task. $errmsg"
+   [[ "$to_item" = +([0-9]) ]] || die "To_Item should be numeric. $errmsg"
    item_exists $from_item
    [[ $? -eq 1  ]] && { 
-      subtask_exists $from_item
-      [[ $? -eq 1  ]] && { die "Error: $from_item does not exist."; }
+      #subtask_exists $from_item
+      #[[ $? -eq 1  ]] && { die "Error: $from_item does not exist."; }
+      die "Error: $from_item does not exist."; 
    }
    echo "OK. $from_item exists $todo"
    old_todo="$todo"
    item_exists $to_item
    [[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
-   subtask_exists $to_item
-   [[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
-   echo "all seems okay:$old_todo"
+   #subtask_exists $to_item
+   #[[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
+   echo "all seems okay...:$old_todo"
    sed -i.bak "/${from_item}.*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
+   echo "Changes made."
 #   sed -i.bak "/${from_item}\.[0-9\.]*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
+}
+copyunder ()
+{
+   from_item=$1
+   to_item=$2
+   text=$( sed -n "/ ${from_item}${TAB}\[.\]/s/^.*\] //p" "$TODO_FILE" )
+   [[ -z "$text" ]] && { die "Could not get item text"; }
+   addsub $to_item "$text"
 }
 
 
@@ -694,6 +709,8 @@ case $action in
       tag "$@" ;;
    "renum" | "renumber" )
       renumber "$@" ;;
+   "cu" | "copyunder" )
+      copyunder "$@" ;;
    "help")
       help;;
    * )
