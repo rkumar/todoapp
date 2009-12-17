@@ -152,8 +152,9 @@ add ()
 # ---------------------------------------------------------------------------- #
 list ()
 {
-   items=$( sort -t$'\t' -k2 "$TODO_FILE" )
-   total=$( echo "$items" | wc -l ) 
+   #items=$( sort -t$'\t' -k2 "$TODO_FILE" )
+   items=$( sed -e :a -e '$!N;s/\n\( *\)-/~\1-/;ta' -e 'P;D' "$TODO_FILE" | sort -t'	' -k2  | tr '~' '\n' )
+   #total=$( echo "$items" | wc -l ) 
    filter=""
    [[ ! -z "$project" ]] && { items=$( echo "$items" | grep +${project} ) ; }
    [[ ! -z "$component" ]] && { items=$( echo "$items" | grep @${component} ) ; }
@@ -285,22 +286,29 @@ status ()
 }
 validate_subtask ()
 {
-   fullitem="$1"
+   item="$1"  # item
    shift
    errmsg="$*"
-   item=$( expr $fullitem : '\([0-9]\+\)\.')
-   validate_item "$item" "$errmsg"
-   if grep -q "${fullitem}" <<< "$todo"; then
-      :
-   else
-      echo "Subtask ${fullitem} not found"
-      exit 1
+   if [[ -z "$item" ]]; then
+      die "Item required. $errmsg"
    fi
+   #[[ "$item" = +([0-9]) ]] || die "Item should be numeric. $errmsg"
+   check_file
+   #paditem=$( printf "%3s" $item )
+   todo=$( grep -n "^ *- $item" "$TODO_FILE" )
+   if [[ -z "$todo" ]]; then
+      die "Item $item not found in $TODO_FILE. $errmsg"
+   fi
+   lineno=$( echo "$todo" | cut -d: -f1 )
+   todo=$( echo "$todo" | cut -d: -f2 )
+   #item=$( expr $fullitem : '\([0-9]\+\)\.')
+   #validate_item "$item" "$errmsg"
 }
 marksub ()
 {
-   fullitem="$1"  # rem _
-   status="$2"  # rem _
+   fullitem="$1"  
+   status="$2"  
+   TAB="	"
 
     errmsg="usage: $APPNAME ITEM# status [start|pend|close|hold|next|unstarted] "
     newstatus=$( echo $status | sed 's/^start/@/;s/^pend/P/;s/^close/x/;s/hold/H/;s/next/1/;s/^unstarted/ /' )
@@ -308,9 +316,10 @@ marksub ()
        echo "Error! Given status invalid ($newstatus)"
        die "$errmsg"
     fi
-#   validate_item "$item" "$errmsg"
-   validate_subtask "$fullitem" "$errmsg"
-    sed -i.bak "/^$paditem/s/${fullitem} \[.\]/${fullitem} [$newstatus]/" "$TODO_FILE"
+    #   validate_item "$item" "$errmsg"
+    validate_subtask "$fullitem" "$errmsg"
+    #sed -i.bak "/$paditem/s/\(.*\)\[.\]\(.*\)$/\1[$newstatus]\2/" "$TODO_FILE"
+    sed -i.bak "/^ *- $fullitem/s/${fullitem}${TAB}\[.\]/${fullitem}${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        echo "Item $fullitem marked as $status"
     else
@@ -418,19 +427,19 @@ old_addsub ()
 # ---------------------------------------------------------------------------- #
 delsub ()
 {
-   errmsg="usage: $APPNAME delsub ITEM#.SUBTASK#"
+   # TODO - what about deleting all child tasks
+   errmsg="usage: $APPNAME delsub ITEM#.SUBTASK#" # FIXME errmsgs in all sub cases
    fullitem="$1"  # rem _
-   #validate_item "$item" "$errmsg"
+   echo "item:$fullitem"
    validate_subtask "$fullitem" "$errmsg"
-   todo=$( echo "$todo"  | sed "s/${fullitem} [^]*//" | sed 's/*$//' )
-   sed -i.bak "/^$paditem/s/.*/$todo/" "$TODO_FILE"
-   #sed -i.bak "/^$paditem/s/${fullitem} [^]*//" "$TODO_FILE"
-    if [  $? -eq 0 ]; then
+   [[ -z "$lineno" ]] && { die "Cant delete, no line number."; }
+   sed -i.bak ${lineno}'d' "$TODO_FILE"
+   if [  $? -eq 0 ]; then
        echo "Subtask $fullitem deleted."
-    else
+   else
        echo "Operation failed. "
-    fi
-    cleanup
+   fi
+   cleanup
    # note: i am leaving a C-a there, since there could be other subtasks
    # also, its required to keep the numbering going 
 }
