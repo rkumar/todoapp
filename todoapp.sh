@@ -7,6 +7,8 @@
 #           Licensed under GPL                          #
 #           http://www.gnu.org/copyleft/gpl.html        #
 #                                                       #
+# I wrote this script as a way of not completing        #
+# another, more pressing task.                          #
 #           v1.0.0 Initial Release                      #
 #           v2.0.0 subtask in separate line             #
 #*******************************************************#
@@ -637,7 +639,58 @@ copyunder ()
    [[ -z "$text" ]] && { die "Could not get item text"; }
    addsub $to_item "$text"
 }
+edit ()
+{
 
+   local item="$1"
+   todo=$( grep -n " $item${TAB}" "$TODO_FILE" )
+   [[ -z "$todo" ]] && { die "$item: no such item or subtask"; }
+   ## take out the stuffing between status and date
+   text=$( expr "$todo" : '.*\[.\] \(.*\) ([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\})$' )
+   text=$( expr "$todo" : '.*\[.\] \(.*\)$' )
+   [[ -z "$text" ]] && { die "Sorry could not extract text"; }
+   TMPFILE=${TMPDIR:-/tmp}/prog.$$
+   trap "rm -f $TMPFILE; exit 1" 0 1 2 3 13 15
+   echo "$text" > "$TMPFILE"
+   edit_tmpfile
+   if [  $? -eq 0 ]; then
+      lineno=$(echo "$todo" | cut -d: -f1)
+      [[ -z "$lineno" ]] && { die "Program error. Could not find lineno"; }
+      text=$( cat "$TMPFILE" )
+      echo "line:$lineno."
+      echo "-->s/\].*/] $text/" 
+      sed -i.bak $lineno"s/\].*/] $text/" "$TODO_FILE"
+      if [  $? -eq 0 ]; then
+         echo "Operation successful"
+      else
+         echo "Operation failed"
+      fi
+   fi
+
+}
+
+## Used to edit multi-line text
+## edits temporary file
+# @return = 0 on success, 1 if canceled
+edit_tmpfile()
+{
+            mtime=`stat -c %Y $TMPFILE`
+            $EDITOR $TMPFILE
+            mtime2=`stat -c %Y $TMPFILE`
+            if [ $mtime2 -gt $mtime ] 
+            then
+                
+                ## added cleaning of possible non-print chars
+                TMPFILE2=${TMPDIR:-/tmp}/prog2.$$
+                tr -cd '\12\15\40-\176'  < $TMPFILE > $TMPFILE2
+                mv $TMPFILE2 $TMPFILE
+                return 0
+            else
+                echo "editing cancelled" 1>&2
+                RESULT=0
+            fi
+            return 1
+}
 
 
 
@@ -711,6 +764,8 @@ case $action in
       renumber "$@" ;;
    "cu" | "copyunder" )
       copyunder "$@" ;;
+   "edit")
+      edit "$@" ;;
    "help")
       help;;
    * )
