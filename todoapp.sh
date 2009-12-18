@@ -13,7 +13,6 @@
 #           v1.0.0 Initial Release                      #
 #           v2.0.0 subtask in separate line             #
 #*******************************************************#
-# TODO: all functions should now be the same, avoid subtask subcommand
 # NOTE: the free-form text format, although tempting to start with
 #+ gives problems when you wish to updates some term.
 # Minimal installation, creates a file in the current
@@ -169,6 +168,8 @@ add ()
          exit 1
       fi
    fi
+   # convert actual newline to C-a. slash n's are escapes so echo -e does not muck up.
+   text=$( echo -n "$text" | tr '\n' '' | sed 's/\\/\\\\/g')
    appname=$( basename $( pwd ) )
    item=$( get_serial_number -a "$appname" -d "$(pwd)" )
    paditem=$( printf "%3s" $item )
@@ -188,6 +189,7 @@ add ()
 # @return  : returns 
 # ---------------------------------------------------------------------------- #
 # # TODO --hide-sub or --level/depth
+# # TODO --hide-complete
 list ()
 {
    #items=$( sort -t$'\t' -k2 "$TODO_FILE" )
@@ -219,7 +221,7 @@ list ()
       )
    fi
    # taking care of subtasks
-   echo -e "$items" | tr -s '' | sed 's//        /g;s/	/ /g' | tr '' '\n'
+   echo -e "$items" | tr -s '' | sed "s//        /g;s/${TAB}/ /g" | tr '' '\n'
    shown=$( echo "$items" | wc -l ) 
    echo 
    echo "Shown $shown of $total items from $TODO_FILE"
@@ -407,13 +409,21 @@ delchildren ()
     fi
 }
 
+# ---------------------------------------------------------------------------- #
+# addsub
+# adds subtask below given task/subtask
+# @param   : item
+# @param   : text to add
+# ---------------------------------------------------------------------------- #
+# TODO - if date at end don't add
+# TODO escape data and convert newlines to C-a. when cu calls here it should unescape.
+
 addsub ()
 {
    fullitem=$1
-   TAB="	" # tab
-   DELIM="${TAB}"
    shift
    subtask="$*"
+   DELIM="${TAB}"
    #validate_item "$item" "$errmsg"
    #validate_subtask "$fullitem" "$errmsg"
    ## Is there a level below this one. Get the last one.
@@ -439,8 +449,9 @@ addsub ()
       # get higher level
    else
       # there is a level below this one. get last.
-      last=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
+      last=$(echo "$full" | cut -d'-' -f2 | grep -o '^  *[0-9\.]\+' | tr -d '[:space:]' ) 
       echo "last:$last"
+      [[ -z "$last" ]] && { die "Error 454: 'last' blank"; }
       # get line number of last
       lastchild=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*\.[0-9]*" "$TODO_FILE" | tail -1 )
       if [[ -z "$lastchild" ]]; then
@@ -449,6 +460,7 @@ addsub ()
          line=$( expr "$lastchild" : '^\([0-9]\+\):' )
       fi
       indent=$( expr "$full" : '^[0-9]\+:\( \+\)')
+      [ $? -gt 0 ] && die "Error 461: expr. possibly full blank"
       #indent=$( expr "$last" : '\([^-0-9]\+\)' )
       echo "X${indent}Y"
       echo ""
@@ -456,6 +468,7 @@ addsub ()
       highest=$( echo "$last" | cut -d' ' -f2 )
       echo "line: $line, highest: $highest"
       base=$(expr $highest : '.*\.\([0-9]\+\)$')
+      [ $? -gt 0 ] && die "Error 469: expr. possibly highest blank"
       len=$(( ${#highest}-${#base}-0 ))
       echo "len: $len"
       part1="${highest:0:${len}}"
@@ -469,7 +482,16 @@ addsub ()
    [ ! -z "$component" ] && component=" @${component}"
    [ ! -z "$priority" ] && priority=" (${priority})"
    #newtext="${paditem}${DELIM}[ ]${priority}${project}${component} $text ($today)"
-   newtodo="${indent}-  ${newnum}${DELIM}[ ]${priority}${project}${component} ${subtask} ($today)"
+   if [[ -z "$COPYING" ]]; then
+      subtask=$( echo -n "$subtask" | tr '\n' '' | sed 's/\\/\\\\/g')
+   fi
+   newtodo="${indent}-  ${newnum}${DELIM}[ ]${priority}${project}${component} ${subtask}"
+   # if there's no date at end, add todays. User may send in own start date, or copy may
+   if grep -q "([0-9]\{4\}-[0-9][0-9]-[0-9][0-9])$" <<< "$subtask"; then
+      :
+   else
+      newtodo+=" ($today)"
+   fi
    echo "LINE:"
    echo "$newtodo"
    [[ -z "$line" ]] && { echo "line blank!" ; exit 1; }
@@ -549,6 +571,7 @@ copyunder ()
    #+ which means copied version will have open state.
    text=$( sed -n "/ ${from_item}${TAB}\[.\]/s/^.*\] //p" "$TODO_FILE" )
    [[ -z "$text" ]] && { die "Could not get item text"; }
+   COPYING=1
    addsub $to_item "$text"
 }
 # ---------------------------------------------------------------------------- #
