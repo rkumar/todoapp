@@ -1,6 +1,6 @@
 # todoapp
 
-A simple, multi-level command-line todo list manager.  
+An unbelievably complex, multi-level command-line todo list manager.  
 Based on bash.
 
     "I wrote this script as a way of not completing another, more pressing task."
@@ -13,6 +13,8 @@ Based on bash.
 "A Todo-list on steroids"
 
 "I'll never use another todo-list manager ever again."
+
+"This software blew my pants off!!!!"
 
 
 ## License

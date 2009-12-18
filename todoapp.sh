@@ -37,7 +37,7 @@ SUBGAP="  "
 shopt -s extglob
 
 USAGE=$( printf "%s\n        %s" "$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] add <text>" \
-"     $APPNAME action ITEM#" )
+"     $APPNAME action TASK#" )
 # ---------------------------------------------------------------------------- #
 # usage
 # description of usage
@@ -60,34 +60,29 @@ help ()
       Usage: $USAGE
 
       Actions:
-      add
-         [suboptions] add "todo item"
-         add suboptions:
-         -P | --project  add project name to item
-         -C | --component add component or context name to item
-         -p | --priority  add priority to item
+      add <text>
+         add options:
+         -P | --project <PROJECTNAME>  add project name to task
+         -C | --component <COMPONENT> add component or context name to task
+         -p | --priority <[A-Z]>  add priority to task
+         e.g. todoapp.sh --project rms --component menu -p C "Menu needs date"
 
-      delete
-         delete #ITEM
+      addsub TASK# text
+         Add a todo under TASK. Creates a subtask such as 1.1 or 1.1.1.
 
-      mark | status #ITEM <state> 
+      delete TASK#
+         Delete a task or subtask.
+
+      mark | status TASK# <state> 
+         Marks a task with given state.
          state - one of start,close, unstarted, pend, hold, next
 
       list
-         listing of tasks
-         list sub-options:
+         Listing of tasks
+         list options:
          --no-colors  don't show colors
          --colors     show colors
 
-      subtask [add | delete | mark] ITEM# [args]
-         add ITEM# text
-         add a subtask to the given item with given text
-
-         del ITEM#.SUBTASK#
-         delete the subtask (e.g. subtask del 3.4)
-
-         mark ITEM#.SUBTASK# <state>
-         mark the state of the given task (e.g. subtask mark close 3.5)
 
 EndHelp
 }
@@ -153,6 +148,8 @@ die ()
 cleanup ()
 {
    # rm .bak file
+   BAKFILE="${TODO_FILE}.bak"
+   [ -f "$BAKFILE" ] && rm "$BAKFILE"
    exit 0
 }
 
@@ -318,7 +315,7 @@ status ()
    item="$1"  # rem _
    status="$2"  # rem _
 
-    errmsg="usage: $APPNAME status ITEM# [start|pend|close|hold|next|unstarted] "
+    errmsg="usage: $APPNAME status TASK# [start|pend|close|hold|next|unstarted] "
     newstatus=$( echo $status | sed 's/^start/@/;s/^pend/P/;s/^close/x/;s/hold/H/;s/next/1/;s/^unstarted/ /' )
     if [[ ${#newstatus} != 1 ]]; then
        echo "Error! Given status invalid ($newstatus)"
@@ -375,31 +372,6 @@ subtask_exists ()
    todo=$( echo "$todo" | cut -d: -f2 )
    ITEM_TYPE=2
    return 0
-}
-marksub ()
-{
-   fullitem="$1"  
-   status="$2"  
-   TAB="	"
-
-    errmsg="usage: $APPNAME ITEM# status [start|pend|close|hold|next|unstarted] "
-    newstatus=$( echo $status | sed 's/^start/@/;s/^pend/P/;s/^close/x/;s/hold/H/;s/next/1/;s/^unstarted/ /' )
-    if [[ ${#newstatus} != 1 ]]; then
-       echo "Error! Given status invalid ($newstatus)"
-       die "$errmsg"
-    fi
-    #   validate_item "$item" "$errmsg"
-    validate_subtask "$fullitem" "$errmsg"
-    #sed -i.bak "/$paditem/s/\(.*\)\[.\]\(.*\)$/\1[$newstatus]\2/" "$TODO_FILE"
-    sed -i.bak "/^ *-$SUBGAP$fullitem/s/${fullitem}${TAB}\[.\]/${fullitem}${TAB}[$newstatus]/" "$TODO_FILE"
-    if [  $? -eq 0 ]; then
-       echo "Item $fullitem marked as $status"
-    else
-       echo "Operation failed. "
-    fi
-    markchildren "$fullitem" $newstatus
-    cleanup
-
 }
 
 markchildren ()
@@ -517,72 +489,6 @@ x
     cleanup
 
 }
-subpriority ()
-{
-   item="$2"  # 
-   newpri="$1"
-   TAB="	" # tab
-   errmsg="usage: $APPNAME priority [A-Z] #item"
-   newpri=$( printf "%s\n" "$newpri" | tr 'a-z' 'A-Z' )
-   [[ "$newpri" = @([A-Z]) ]] || die "$errmsg"
-   validate_subtask "$item" "$errmsg"
-   # if a priority exists, remove it. Remove only main task pri
-   if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
-      todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
-   fi
-   # add new priority exists
-   todo=$( echo "$todo" | sed "s/] /] ($newpri) /" )
-   sed -i.bak "/^ *-$SUBGAP$item${TAB}/s/.*/$todo/" "$TODO_FILE"
-   if [  $? -eq 0 ]; then
-      echo "Change priority for $item successful"
-   fi
-   cleanup
-}
-# @obsolete
-subdepri ()
-{
-   item="$2"  # 
-   newpri="$1"
-   TAB="	" # tab
-   errmsg="usage: $APPNAME priority [A-Z] #item"
-   newpri=$( printf "%s\n" "$newpri" | tr 'a-z' 'A-Z' )
-   [[ "$newpri" = @([A-Z]) ]] || die "$errmsg"
-   validate_subtask "$item" "$errmsg"
-   # if a priority exists, remove it. Remove only main task pri
-   if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
-      todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
-      sed -i.bak "/^ *-$SUBGAP$item${TAB}/s/.*/$todo/" "$TODO_FILE"
-      if [  $? -eq 0 ]; then
-         echo "Change priority for $item successful"
-      fi
-      cleanup
-   fi
-   # remove priority 
-}
-# ---------------------------------------------------------------------------- #
-# delsub
-# delete a subtask
-# @param   : subtask id
-# @obsolete
-# ---------------------------------------------------------------------------- #
-delsub ()
-{
-   errmsg="usage: $APPNAME delsub ITEM#.SUBTASK#" # FIXME errmsgs in all sub cases
-   fullitem="$1"  # rem _
-   echo "item:$fullitem"
-   validate_subtask "$fullitem" "$errmsg"
-   [[ -z "$lineno" ]] && { die "Cant delete, no line number."; }
-   sed -i.bak ${lineno}'d' "$TODO_FILE"
-   if [  $? -eq 0 ]; then
-       echo "Subtask $fullitem deleted."
-   else
-       echo "Operation failed. "
-   fi
-   delchildren "$fullitem"
-   cleanup
-   # note: i am leaving a C-a there, since there could be other subtasks
-   # also, its required to keep the numbering going 
-}
 
 # ---------------------------------------------------------------------------- #
 # check_file
@@ -592,44 +498,17 @@ check_file ()
 {
    [[ ! -f "$TODO_FILE" ]] && die "$TODO_FILE does not exist in this dir. Use 'add' to create an item first."
 }
-
 # ---------------------------------------------------------------------------- #
-# subtask
-# group of methods relating to subtasks (add, delete, mark)
-# @param   : action
-# @param   : item (not necessary)
-# @return  : returns 
+# renumber
+# Renumbers one task to another. Only top level task
+# @param   : from_item
+# @param   : to_item
+# @return  : zilch on success, 1 on error
 # ---------------------------------------------------------------------------- #
-subtask ()
-{
-   action="$1"  # 
-   #item="$2"  # 
-   shift
-   case $action in
-      "del" | "delete")
-         delsub "$@"
-         ;;
-      "add" | "a")
-         addsub "$@"
-         ;;
-      "mark" | "status")
-         marksub "$@"
-         ;;
-      "pri" | "priority")
-         subpriority "$@"
-         ;;
-      "depri" )
-         subdepri "$@"
-         ;;
-      * )
-      echo "$action unknown. Please use one of add, del, mark." 1>&2   
-      ;;
-   esac
-}
 renumber ()
 {
    # only for top level task
-   errmsg="Usage: renumber FROM_ITEM# TO_ITEM# (Note: from and to are top level tasks"
+   errmsg="Usage: renumber FROM_TASK# TO_TASK# (Note: from and to are top level tasks"
    from_item=$1
    to_item=$2
    [[ "$from_item" = +([0-9]) ]] || die "Item should be a top level task. $errmsg"
@@ -653,6 +532,14 @@ renumber ()
    echo "Changes made."
 #   sed -i.bak "/${from_item}\.[0-9\.]*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
 }
+# ---------------------------------------------------------------------------- #
+# copyunder
+# copies one task under another task. Useful for demoting a task, so multiple
+#+ tasks can be grouped under one head task.
+# @param   : from_item
+# @param   : to_item
+# @return  : 0 
+# ---------------------------------------------------------------------------- #
 copyunder ()
 {
    # the date is getting doubled when we copy FIXME
@@ -664,6 +551,12 @@ copyunder ()
    [[ -z "$text" ]] && { die "Could not get item text"; }
    addsub $to_item "$text"
 }
+# ---------------------------------------------------------------------------- #
+# edit
+# Edit a given task text. Useful for changing, or when a task has been demoted
+#+ to edit the top-level entry.
+# @param   : item (to edit)
+# ---------------------------------------------------------------------------- #
 edit ()
 {
 
@@ -691,7 +584,8 @@ edit ()
          echo "Operation failed"
       fi
    fi
-
+   rm "$TMPFILE"
+   trap 0
 }
 
 ## Used to edit multi-line text
@@ -717,11 +611,15 @@ edit_tmpfile()
             return 1
 }
 
+# ---------------------------------------------------------------------------- #
+# redo
+# Renumbers the entire file, starting 1.
+# Useful when the numbers have gone high, many tasks have been deleted
+#+ and you want to start again from 1.
+# This updates the serial_number file.
+# ---------------------------------------------------------------------------- #
 redo ()
 {
-   # this does an in-place renumbering from 1
-   # However, your seq_number file is still not updated
-   # The file does not come out sorted on number
    # join
    #items=$( sed -e :a -e '$!N;s/\n\( *\)-/~\1-/;ta' -e 'P;D' "$TODO_FILE" | cut -c4-  | nl -w3 | tr '~' '\n' )
    #echo -e "$items" | tr -s '' | sed 's//        /g;s/	/ /g' | tr '' '\n'
@@ -755,6 +653,7 @@ redo ()
    cp "$TMPFILE" "$TODO_FILE"
    echo "Operation complete. " 1>&2
    echo "Backup saved as $BAKFILE. " 1>&2
+   rm "$TMPFILE"
 }
 
 
@@ -838,7 +737,7 @@ case $action in
    "help")
       help;;
    * )
-   echo "Action incorrect. Actions include add, delete, list, mark." 1>&2
+   echo "Action incorrect. Actions include add, addsub, delete, list, mark, priority." 1>&2
    usage
    ;;
 esac
