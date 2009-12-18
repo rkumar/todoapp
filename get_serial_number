@@ -44,8 +44,17 @@ help()
 EndUsage
 }
 
+zap () {
 
-while getopts hVvd:a:s:i:r: flag
+   [ -z "$MYDIR" ] && { echo "Error ($0): Dir name required"; exit 1; }
+   file=$MYDIR/serial_numbers
+   [ -z "$app" ] && { echo "Error ($0): App name required"; exit 1; }
+   istart=${istart:-1}
+   sed -i.bak -e "/$app/s/.*/$app:$istart/" $file
+   exit 0
+}
+
+while getopts hVvd:a:s:i:r:z flag
 do
     case "$flag" in
     (h) help; exit 0;;
@@ -56,6 +65,7 @@ do
     (s) istart="$OPTARG";;
     (r) irestart="$OPTARG";;
     (d) MYDIR="$OPTARG";;
+    (z) zap ;;
     (*) usage;;
     esac
 done
@@ -74,7 +84,7 @@ file=$MYDIR/serial_numbers
       echo $istart
       exit 0
    }
-   [ $VERBOSE_FLAG -gt 0 ] && echo "$arg0: Entry for app found:>> $exists"
+   [ $VERBOSE_FLAG -gt 0 ] && echo "$arg0: Entry for app found:>> $exists" 1>&2
    ## extract counter
    ctr=`expr "$exists" : '.*:\([0-9]\+\)'`
    let result=$ctr+$increment
