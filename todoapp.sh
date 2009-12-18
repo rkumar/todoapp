@@ -79,8 +79,9 @@ help ()
       list
          Listing of tasks
          list options:
-         --no-colors  don't show colors
-         --colors     show colors
+         --no-colors   don't show colors
+         --colors      show colors
+         --sort-serial sort on item number
 
 
 EndHelp
@@ -194,7 +195,13 @@ list ()
 {
    #items=$( sort -t$'\t' -k2 "$TODO_FILE" )
    # join
-   items=$( sed -e :a -e '$!N;s/\n\( *\)-/~\1-/;ta' -e 'P;D' "$TODO_FILE" | sort -t'	' -k2  | tr '~' '\n' )
+   if [[ -n "$SORT_SERIAL" ]]; then
+      sort_key="1"
+   else
+      sort_key="2"
+   fi
+   # TODO FIXME the ~ in next line was experimental. Use something else 
+   items=$( sed -e :a -e '$!N;s/\n\( *\)-/\1-/;ta' -e 'P;D' "$TODO_FILE" | sort -t'	' -k$sort_key  | tr '' '\n' )
    #total=$( echo "$items" | wc -l ) 
    filter=""
    [[ ! -z "$project" ]] && { items=$( echo "$items" | grep +${project} ) ; }
@@ -234,22 +241,26 @@ list ()
 # ---------------------------------------------------------------------------- #
 delete ()
 {
-   item="$1"  # rem _
-   errmsg="usage: $APPNAME delete #item"
-   #validate_item "$item" "$errmsg"
-   item_or_sub_exists "$item" "$errmsg"
-   echo -n "Do you wish to delete: $todo" '[y/n] ' ; read ans
-   case "$ans" in
-      y*|Y*) 
-      #sed -i.bak "/^$paditem/d" "$TODO_FILE"
-      sed -i.bak ${lineno}'d' "$TODO_FILE"
-      if [  $? -eq 0 ]; then
-         echo "Delete $item successful"
-         delchildren $item
-      fi
-      ;;
-      *) echo "No item deleted"  ;;
-   esac
+   errmsg="usage: $APPNAME delete #item ..."
+   numargs=$#
+   for ((i=1 ; i <= numargs ; i++)); do
+      item="$1"  # rem _
+      #validate_item "$item" "$errmsg"
+      item_or_sub_exists "$item" "$errmsg"
+      echo -n "Do you wish to delete: $todo" '[y/n] ' ; read ans
+      case "$ans" in
+         y*|Y*) 
+         #sed -i.bak "/^$paditem/d" "$TODO_FILE"
+         sed -i.bak ${lineno}'d' "$TODO_FILE"
+         if [  $? -eq 0 ]; then
+            echo "Delete $item successful"
+            delchildren $item
+         fi
+         ;;
+         *) echo "No item deleted"  ;;
+      esac
+      shift
+   done
    
 }
 # ---------------------------------------------------------------------------- #
@@ -415,9 +426,6 @@ delchildren ()
 # @param   : item
 # @param   : text to add
 # ---------------------------------------------------------------------------- #
-# TODO - if date at end don't add
-# TODO escape data and convert newlines to C-a. when cu calls here it should unescape.
-
 addsub ()
 {
    fullitem=$1
@@ -711,6 +719,10 @@ case "$1" in                    # remove _
      ;;
    --no-colors)
      COLORIZE="0"
+     shift
+     ;;
+   --sort-serial)
+     SORT_SERIAL=1
      shift
      ;;
    -h|--help|-help)
