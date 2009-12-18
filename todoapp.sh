@@ -7,12 +7,15 @@
 #           Licensed under GPL                          #
 #           http://www.gnu.org/copyleft/gpl.html        #
 #                                                       #
-# I wrote this script as a way of not completing        #
-# another, more pressing task.                          #
+#    I wrote this script as a way of not completing     #
+#    another, more pressing task.                       #
+#                                                       #
 #           v1.0.0 Initial Release                      #
 #           v2.0.0 subtask in separate line             #
 #*******************************************************#
 # TODO: all functions should now be the same, avoid subtask subcommand
+# NOTE: the free-form text format, although tempting to start with
+#+ gives problems when you wish to updates some term.
 # Minimal installation, creates a file in the current
 #+ folder, so you can have todo files in multiple projects
 
@@ -30,9 +33,11 @@ AUTHOR="rkumar"
 today=$( date '+%Y-%m-%d' )
 DELIM=$'\t'
 TAB="	"
+SUBGAP="  "
 shopt -s extglob
 
-USAGE="$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] action #ITEM"
+USAGE=$( printf "%s\n        %s" "$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] add <text>" \
+"     $APPNAME action ITEM#" )
 # ---------------------------------------------------------------------------- #
 # usage
 # description of usage
@@ -111,11 +116,26 @@ validate_item ()
 item_exists () {
    local item=$1
    paditem=$( printf "%3s" $item )
-   todo=$( grep "^$paditem" "$TODO_FILE" )
+   todo=$( grep -n "^$paditem" "$TODO_FILE" )
    if [[ -z "$todo" ]]; then
       return 1
    fi
+   lineno=$( echo "$todo" | cut -d: -f1 )
+   todo=$( echo "$todo" | cut -d: -f2 )
+   ITEM_TYPE=1
    return 0
+}
+
+item_or_sub_exists ()
+{
+   local item=$1
+   item_exists $item
+   if [  $? -eq 0 ]; then
+      return 0
+   fi
+   subtask_exists $item
+   [  $? -eq 0 ] && { return 0; }
+   die "Error: $item does not exist. $errmsg"
 }
 
 # ---------------------------------------------------------------------------- #
@@ -174,6 +194,7 @@ add ()
 list ()
 {
    #items=$( sort -t$'\t' -k2 "$TODO_FILE" )
+   # join
    items=$( sed -e :a -e '$!N;s/\n\( *\)-/~\1-/;ta' -e 'P;D' "$TODO_FILE" | sort -t'	' -k2  | tr '~' '\n' )
    #total=$( echo "$items" | wc -l ) 
    filter=""
@@ -216,42 +237,46 @@ delete ()
 {
    item="$1"  # rem _
    errmsg="usage: $APPNAME delete #item"
-   validate_item "$item" "$errmsg"
+   #validate_item "$item" "$errmsg"
+   item_or_sub_exists "$item" "$errmsg"
    echo -n "Do you wish to delete: $todo" '[y/n] ' ; read ans
    case "$ans" in
       y*|Y*) 
-      sed -i.bak "/^$paditem/d" "$TODO_FILE"
+      #sed -i.bak "/^$paditem/d" "$TODO_FILE"
+      sed -i.bak ${lineno}'d' "$TODO_FILE"
       if [  $? -eq 0 ]; then
          echo "Delete $item successful"
+         delchildren $item
       fi
       ;;
       *) echo "No item deleted"  ;;
    esac
-   delchildren $item
    
 }
 # ---------------------------------------------------------------------------- #
 # priority
 # Add a priority to a todo. Helps in sorting and coloring.
-# @param   : priority A-Z
 # @param   : item
+# @param   : priority A-Z
 # ---------------------------------------------------------------------------- #
 priority ()
 {
-   item="$2"  # 
-   newpri="$1"
+   # switched order to be consistent. Now item first. Sucks, I know.
+   item="$1"  # 
+   newpri="$2"
    TAB="	" # tab
    errmsg="usage: $APPNAME priority [A-Z] #item"
    newpri=$( printf "%s\n" "$newpri" | tr 'a-z' 'A-Z' )
    [[ "$newpri" = @([A-Z]) ]] || die "$errmsg"
-   validate_item "$item" "$errmsg"
+   #validate_item "$item" "$errmsg"
+   item_or_sub_exists  "$item" "$errmsg"
    # if a priority exists, remove it. Remove only main task pri
    if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
       todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
    fi
    # add new priority exists
    todo=$( echo "$todo" | sed "s/] /] ($newpri) /" )
-   sed -i.bak "/$paditem/s/.*/$todo/" "$TODO_FILE"
+   sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
    if [  $? -eq 0 ]; then
       echo "Change priority for $item successful"
    fi
@@ -266,13 +291,14 @@ depri ()
 {
    item="$1"  # 
    errmsg="usage: $APPNAME depri #item"
-   validate_item "$item" "$errmsg"
+   #validate_item "$item" "$errmsg"
+   item_or_sub_exists  "$item" "$errmsg"
    # if a priority exists, remove it
    #if grep -q "\[.\] ([A-Z])" <<< "$todo"; then
    TAB="	" # tab
    if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
       todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
-      sed -i.bak "/$paditem/s/.*/$todo/" "$TODO_FILE"
+      sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
       if [  $? -eq 0 ]; then
          echo "Removed priority for $item."
       fi
@@ -292,14 +318,24 @@ status ()
    item="$1"  # rem _
    status="$2"  # rem _
 
-    errmsg="usage: $APPNAME ITEM# status [start|pend|close|hold|next|unstarted] "
+    errmsg="usage: $APPNAME status ITEM# [start|pend|close|hold|next|unstarted] "
     newstatus=$( echo $status | sed 's/^start/@/;s/^pend/P/;s/^close/x/;s/hold/H/;s/next/1/;s/^unstarted/ /' )
     if [[ ${#newstatus} != 1 ]]; then
        echo "Error! Given status invalid ($newstatus)"
        die "$errmsg"
     fi
-    validate_item "$item" "$errmsg"
-    sed -i.bak "/$paditem/s/\(.*\)\[.\]\(.*\)$/\1[$newstatus]\2/" "$TODO_FILE"
+    #validate_item "$item" "$errmsg"
+    item_or_sub_exists "$item" "$errmsg"
+    case $ITEM_TYPE in
+       1)
+       sed -i.bak "/^$paditem/s/\(.*\)\[.\]\(.*\)$/\1[$newstatus]\2/" "$TODO_FILE"
+          ;;
+       2)
+       sed -i.bak "/^ *-$SUBGAP$item/s/${item}${TAB}\[.\]/${item}${TAB}[$newstatus]/" "$TODO_FILE"
+          ;;
+       * )
+       ;;
+    esac
     if [  $? -eq 0 ]; then
        echo "Item $item marked as $status"
     else
@@ -319,7 +355,7 @@ validate_subtask ()
    #[[ "$item" = +([0-9]) ]] || die "Item should be numeric. $errmsg"
    check_file
    #paditem=$( printf "%3s" $item )
-   todo=$( grep -n "^ *- $item${TAB}" "$TODO_FILE" )
+   todo=$( grep -n "^ *-$SUBGAP$item${TAB}" "$TODO_FILE" )
    if [[ -z "$todo" ]]; then
       die "Subtask $item not found in $TODO_FILE. $errmsg"
    fi
@@ -331,10 +367,13 @@ validate_subtask ()
 subtask_exists ()
 {
    local item=$1
-   todo=$( grep -n "^ *- $item${TAB}" "$TODO_FILE" )
+   todo=$( grep -n "^ *-$SUBGAP$item${TAB}" "$TODO_FILE" )
    if [[ -z "$todo" ]]; then
       return 1
    fi
+   lineno=$( echo "$todo" | cut -d: -f1 )
+   todo=$( echo "$todo" | cut -d: -f2 )
+   ITEM_TYPE=2
    return 0
 }
 marksub ()
@@ -352,7 +391,7 @@ marksub ()
     #   validate_item "$item" "$errmsg"
     validate_subtask "$fullitem" "$errmsg"
     #sed -i.bak "/$paditem/s/\(.*\)\[.\]\(.*\)$/\1[$newstatus]\2/" "$TODO_FILE"
-    sed -i.bak "/^ *- $fullitem/s/${fullitem}${TAB}\[.\]/${fullitem}${TAB}[$newstatus]/" "$TODO_FILE"
+    sed -i.bak "/^ *-$SUBGAP$fullitem/s/${fullitem}${TAB}\[.\]/${fullitem}${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        echo "Item $fullitem marked as $status"
     else
@@ -367,7 +406,7 @@ markchildren ()
 {
    local item="$1"
    local status="$2"
-   if grep -q "^ *- ${item}\.[0-9\.]*${TAB}" "$TODO_FILE"; then
+   if grep -q "^ *-$SUBGAP${item}\.[0-9\.]*${TAB}" "$TODO_FILE"; then
       :
    else
       return 0
@@ -378,7 +417,7 @@ markchildren ()
       *) return 0;;
    esac
    
-   sed -i.bak "/^ *- ${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
+   sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        echo "Subtasks of Item $item marked as $status"
     else
@@ -388,7 +427,7 @@ markchildren ()
 delchildren ()
 {
    local item="$1"
-   sed -i.bak "/^ *- ${item}\.[0-9\.]*${TAB}/d" "$TODO_FILE"
+   sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/d" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        echo "Subtasks of Item $item deleted"
     else
@@ -406,7 +445,7 @@ addsub ()
    #validate_item "$item" "$errmsg"
    #validate_subtask "$fullitem" "$errmsg"
    ## Is there a level below this one. Get the last one.
-   full=$( grep -n -e "- ${fullitem}\.[0-9]*${TAB}" "$TODO_FILE" | tail -1 )
+   full=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*${TAB}" "$TODO_FILE" | tail -1 )
    ## extract number
       echo "full:$full"
    if [[ -z "$full" ]]; then # no level below this one
@@ -431,7 +470,7 @@ addsub ()
       last=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
       echo "last:$last"
       # get line number of last
-      lastchild=$( grep -n -e "- ${fullitem}\.[0-9]*\.[0-9]*" "$TODO_FILE" | tail -1 )
+      lastchild=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*\.[0-9]*" "$TODO_FILE" | tail -1 )
       if [[ -z "$lastchild" ]]; then
          line=$( expr "$full" : '^\([0-9]\+\):' )
       else
@@ -458,7 +497,7 @@ addsub ()
    [ ! -z "$component" ] && component=" @${component}"
    [ ! -z "$priority" ] && priority=" (${priority})"
    #newtext="${paditem}${DELIM}[ ]${priority}${project}${component} $text ($today)"
-   newtodo="${indent}- ${newnum}${DELIM}[ ]${priority}${project}${component} ${subtask} ($today)"
+   newtodo="${indent}-  ${newnum}${DELIM}[ ]${priority}${project}${component} ${subtask} ($today)"
    echo "LINE:"
    echo "$newtodo"
    [[ -z "$line" ]] && { echo "line blank!" ; exit 1; }
@@ -471,7 +510,7 @@ x
    
     if [  $? -eq 0 ]; then
        echo "Subtask added to Item $fullitem."
-       cat "$TODO_FILE"
+       #cat "$TODO_FILE"
     else
        echo "Operation failed. "
     fi
@@ -493,12 +532,13 @@ subpriority ()
    fi
    # add new priority exists
    todo=$( echo "$todo" | sed "s/] /] ($newpri) /" )
-   sed -i.bak "/^ *- $item${TAB}/s/.*/$todo/" "$TODO_FILE"
+   sed -i.bak "/^ *-$SUBGAP$item${TAB}/s/.*/$todo/" "$TODO_FILE"
    if [  $? -eq 0 ]; then
       echo "Change priority for $item successful"
    fi
    cleanup
 }
+# @obsolete
 subdepri ()
 {
    item="$2"  # 
@@ -511,7 +551,7 @@ subdepri ()
    # if a priority exists, remove it. Remove only main task pri
    if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
       todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
-      sed -i.bak "/^ *- $item${TAB}/s/.*/$todo/" "$TODO_FILE"
+      sed -i.bak "/^ *-$SUBGAP$item${TAB}/s/.*/$todo/" "$TODO_FILE"
       if [  $? -eq 0 ]; then
          echo "Change priority for $item successful"
       fi
@@ -519,31 +559,11 @@ subdepri ()
    fi
    # remove priority 
 }
-old_addsub ()
-{
-   item=$1
-   errmsg="usage: $APPNAME addsub #item text"
-   shift
-   subtask="$*"
-   validate_item "$item" "$errmsg"
-   tasknum=$(echo "$todo" | awk -F'' '{ print NF;}')
-   [ ! -z "$project" ] && project=" +${project}"
-   [ ! -z "$component" ] && component=" @${component}"
-   [ ! -z "$priority" ] && priority=" (${priority})"
-   #newtext="${paditem}${DELIM}[ ]${priority}${project}${component} $text ($today)"
-   newtodo="${todo}${item}.${tasknum} [ ]${priority}${project}${component} ${subtask} ($today)"
-   sed -i.bak "/$paditem/s/.*/$newtodo/" "$TODO_FILE"
-    if [  $? -eq 0 ]; then
-       echo "Subtask added to Item $item."
-    else
-       echo "Operation failed. "
-    fi
-    cleanup
-}
 # ---------------------------------------------------------------------------- #
 # delsub
 # delete a subtask
 # @param   : subtask id
+# @obsolete
 # ---------------------------------------------------------------------------- #
 delsub ()
 {
@@ -609,7 +629,7 @@ subtask ()
 renumber ()
 {
    # only for top level task
-   errmsg "Usage: renumber FROM_ITEM# TO_ITEM# (Note: from and to are top level tasks"
+   errmsg="Usage: renumber FROM_ITEM# TO_ITEM# (Note: from and to are top level tasks"
    from_item=$1
    to_item=$2
    [[ "$from_item" = +([0-9]) ]] || die "Item should be a top level task. $errmsg"
@@ -620,21 +640,26 @@ renumber ()
       #[[ $? -eq 1  ]] && { die "Error: $from_item does not exist."; }
       die "Error: $from_item does not exist."; 
    }
-   echo "OK. $from_item exists $todo"
+   echo "   OK. $from_item exists $todo"
    old_todo="$todo"
    item_exists $to_item
    [[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
    #subtask_exists $to_item
    #[[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
-   echo "all seems okay...:$old_todo"
+   echo "   all seems okay...:$old_todo"
+   from_item=$( printf "%3s" $from_item )
+   to_item=$( printf "%3s" $to_item )
    sed -i.bak "/${from_item}.*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
    echo "Changes made."
 #   sed -i.bak "/${from_item}\.[0-9\.]*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
 }
 copyunder ()
 {
+   # the date is getting doubled when we copy FIXME
    from_item=$1
    to_item=$2
+   # extract text of mentioned item, but i seem to be removing everything upto the state
+   #+ which means copied version will have open state.
    text=$( sed -n "/ ${from_item}${TAB}\[.\]/s/^.*\] //p" "$TODO_FILE" )
    [[ -z "$text" ]] && { die "Could not get item text"; }
    addsub $to_item "$text"
@@ -690,6 +715,46 @@ edit_tmpfile()
                 RESULT=0
             fi
             return 1
+}
+
+redo ()
+{
+   # this does an in-place renumbering from 1
+   # However, your seq_number file is still not updated
+   # The file does not come out sorted on number
+   # join
+   #items=$( sed -e :a -e '$!N;s/\n\( *\)-/~\1-/;ta' -e 'P;D' "$TODO_FILE" | cut -c4-  | nl -w3 | tr '~' '\n' )
+   #echo -e "$items" | tr -s '' | sed 's//        /g;s/	/ /g' | tr '' '\n'
+
+   TMPFILE="TMPFILE.$$"
+   BAKFILE="$TODO_FILE".bak.$$
+   cp "$TODO_FILE" "$BAKFILE"
+   > "$TMPFILE"
+   appname=$( basename $( pwd ) )
+   get_serial_number -a "$appname" -d "$(pwd)" -z
+   actnum=( $( cut -c1-3 $TODO_FILE | grep '[0-9]' | sort -n | tr -d ' ' ) )
+   len="${#actnum[@]}"
+   echo "len $len" 1>&2
+   for (( i = 1; i <= $len; i++ )); do
+      item=$( get_serial_number -a "$appname" -d "$(pwd)" -s 1 )
+      from_item="${actnum[i-1]}"
+      to_item=$item
+      from_item=$( printf "%3s" $from_item )
+      to_item=$( printf "%3s" $to_item )
+      if [[ $item -eq ${actnum[i-1]} ]]; then
+         grep "${from_item}${TAB}" "$TODO_FILE" >> "$TMPFILE"
+         grep "${from_item}\..*${TAB}" "$TODO_FILE" >> "$TMPFILE"
+         continue
+      fi
+      echo "renumber ${actnum[i-1]} $item" 1>&2
+      #renumber ${actnum[i-1]} $item
+      #sed -i.bak "/${from_item}.*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
+      sed -n "/${from_item}${TAB}\[.\]/s/${from_item}/${to_item}/p" "$TODO_FILE" >> "$TMPFILE"
+      sed -n "/${from_item}\..*${TAB}\[.\]/s/${from_item}/${to_item}/p" "$TODO_FILE" >> "$TMPFILE"
+   done
+   cp "$TMPFILE" "$TODO_FILE"
+   echo "Operation complete. " 1>&2
+   echo "Backup saved as $BAKFILE. " 1>&2
 }
 
 
@@ -756,8 +821,10 @@ case $action in
       delete "$@" ;;
    "dep" | "depri")
       depri "$@" ;;
-   "sub" | "subtask")
-      subtask "$@" ;;
+   "addsub" | "subadd")
+      addsub "$@" ;;
+   #"sub" | "subtask")
+      #subtask "$@" ;;
    "tag" )
       tag "$@" ;;
    "renum" | "renumber" )
@@ -766,6 +833,8 @@ case $action in
       copyunder "$@" ;;
    "edit")
       edit "$@" ;;
+   "redo" )
+      redo;;
    "help")
       help;;
    * )
