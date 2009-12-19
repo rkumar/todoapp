@@ -417,8 +417,7 @@ markchildren ()
    
    [[ "$status_text" = "close" ]] && { 
    # the ^x prevents already closed item from getting date appended
-   #+ but if it was closed, opened and again closed, we get 2 (x...) strings appended.
-      sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}\[[^x]\]/s/.*/& (x${today})/" "$TODO_FILE"
+      se -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}\[[^x]\]/s/.*/& (x${today})/" "$TODO_FILE"
    }
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
@@ -705,7 +704,31 @@ redo ()
    rm "$TMPFILE"
 }
 
-
+# ---------------------------------------------------------------------------- #
+# tag
+# add a tag to an item
+# @param   : item item number
+# @param   : tag tag to add, like a keyword
+# @return  : 0 
+# ---------------------------------------------------------------------------- #
+tag ()
+{
+   errmsg="Usage: $APPNAME tag ITEM# <tag>"
+   item="$1"  # item number 
+   tag="$2"  # tag to add, like a keyword 
+   [[ -z "$tag" ]] && { echo "Error: tag blank." 1>&2; exit 1; }
+   item_or_sub_exists "$item" "$errmsg"
+   if grep -q "@$tag" <<< "$todo"; then
+      echo "Already tagged with $tag. Skipping."
+   else
+      todo=$( echo "$todo" | sed "s/ \(([0-9]\{4\}\)/ @$tag \1/" )
+      sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
+      if [  $? -eq 0 ]; then
+         echo "Added tag $tag for $item ($todo)."
+      fi
+      cleanup
+   fi
+}
 
 
 
