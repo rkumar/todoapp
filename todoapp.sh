@@ -417,7 +417,7 @@ markchildren ()
    
    [[ "$status_text" = "close" ]] && { 
    # the ^x prevents already closed item from getting date appended
-      se -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}\[[^x]\]/s/.*/& (x${today})/" "$TODO_FILE"
+      sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}\[[^x]\]/s/.*/& (x${today})/" "$TODO_FILE"
    }
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
