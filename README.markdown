@@ -16,6 +16,8 @@ Based on bash.
 
 "This software blew my pants off!!!!"
 
+"Absolutely frivolous."
+
 
 ## License
 
@@ -25,7 +27,7 @@ Written by rkumar.
 ## Usage
 
   Usage: todoapp.sh [--project PROJECT] [--component COMP] [--priority A-Z] add <text>
-         todoapp.sh <action> ITEM#
+         todoapp.sh <action> TASK#
 
 **  Actions:**
   add
@@ -36,10 +38,10 @@ Written by rkumar.
      -p | --priority  add priority to item
 
   delete
-     delete #ITEM
+     delete TASK#
      Deletes item and child items
 
-  mark | status #ITEM <state> 
+  mark | status TASK# <state> 
      Change the state of the given item to <state>
      state - one of start,close, unstarted, pend, hold, next
 
@@ -49,24 +51,27 @@ Written by rkumar.
      --no-colors  don't show colors
      --colors     show colors
 
-  addsub ITEM# [args]
-     add ITEM# text
+  addsub TASK# [args]
+     add TASK# text
      Add a subtask to the given item/subtask with given text
 
-  renumber ITEM# ITEM#
-    Renumber a top level item to another (empty/deleted) number
+  renumber TASK# TASK#
+    Renumber a top level task to another (empty/deleted) number
     (e.g renumber 24 12)
 
   redo
     Renumber the entire file starting 1. This is useful if you have been
     using the todo file for a long time, and you now have high numbers.
 
-  copyunder | cu ITEM# ITEM#
-    Copy an existing item as a subtask of another (or same) item.
+  copyunder | cu TASK# TASK#
+    Copy an existing task as a subtask of another (or same) task.
     This does not work recursively.
 
-  edit ITEM#
-    Edit the text of an item in EDITOR.
+  edit TASK#
+    Edit the text of a task in EDITOR.
+
+  tag TASK# <tag>
+    Add a keyword or tag to a task
 
 *Note:* the subtask subcommand will probably be removed soon. del, mark etc will work
 for both top-level and lower-level tasks. "addsub" will be required.
