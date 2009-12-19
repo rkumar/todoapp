@@ -33,6 +33,7 @@ today=$( date '+%Y-%m-%d' )
 DELIM=$'\t'
 TAB="	"
 SUBGAP="  "
+DATE_REGEX='[0-9]\{4\}-[0-9][0-9]-[0-9][0-9]'
 shopt -s extglob
 
 USAGE=$( printf "%s\n        %s" "$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] add <text>" \
@@ -200,7 +201,6 @@ list ()
    else
       sort_key="2"
    fi
-   # TODO FIXME the ~ in next line was experimental. Use something else 
    items=$( sed -e :a -e '$!N;s/\n\( *\)-/\1-/;ta' -e 'P;D' "$TODO_FILE" | sort -t'	' -k$sort_key  | tr '' '\n' )
    #total=$( echo "$items" | wc -l ) 
    filter=""
@@ -336,22 +336,33 @@ status ()
     fi
     #validate_item "$item" "$errmsg"
     item_or_sub_exists "$item" "$errmsg"
-    case $ITEM_TYPE in
-       1)
-       sed -i.bak "/^$paditem/s/\(.*\)\[.\]\(.*\)$/\1[$newstatus]\2/" "$TODO_FILE"
-          ;;
-       2)
-       sed -i.bak "/^ *-$SUBGAP$item/s/${item}${TAB}\[.\]/${item}${TAB}[$newstatus]/" "$TODO_FILE"
-          ;;
-       * )
-       ;;
-    esac
-    if [  $? -eq 0 ]; then
-       echo "Item $item marked as $status"
+    if grep -q "\[$newstatus\]" <<< "$todo"; then
+       echo "Skipping since already:$status."
     else
-       echo "Operation failed. "
+       case $ITEM_TYPE in
+          1)
+             sed -i.bak "/^$paditem/s/\(.*\)\[.\]\(.*\)$/\1[$newstatus]\2/" "$TODO_FILE"
+             if [[ $status = "close" ]]; then
+                sed -i.bak ${lineno}"s/.*/& (x${today})/" "$TODO_FILE"
+             fi
+             ;;
+          2)
+             #sed -i.bak "/^ *-$SUBGAP$item/s/${item}${TAB}\[.\]/${item}${TAB}[$newstatus]/" "$TODO_FILE"
+             sed -i.bak $lineno"s/${item}${TAB}\[.\]/${item}${TAB}[$newstatus]/" "$TODO_FILE"
+             if [[ $status = "close" ]]; then
+                sed -i.bak ${lineno}"s/.*/& (x${today})/" "$TODO_FILE"
+             fi
+             ;;
+       * )
+          ;;
+       esac
+       if [  $? -eq 0 ]; then
+          echo "Item $item marked as $status"
+       else
+          echo "Operation failed. "
+       fi
     fi
-    markchildren "$item" $newstatus
+    markchildren "$item" $newstatus "$status"
     cleanup
 }
 validate_subtask ()
@@ -387,10 +398,12 @@ subtask_exists ()
    return 0
 }
 
+# FIXME what if a child already marked as close. Appending date will do it 2 times.
 markchildren ()
 {
    local item="$1"
-   local status="$2"
+   local status="$2" # now this contains the symbol
+   local status_text="$3" # contains the original word
    if grep -q "^ *-$SUBGAP${item}\.[0-9\.]*${TAB}" "$TODO_FILE"; then
       :
    else
@@ -402,6 +415,11 @@ markchildren ()
       *) return 0;;
    esac
    
+   [[ "$status_text" = "close" ]] && { 
+   # the ^x prevents already closed item from getting date appended
+   #+ but if it was closed, opened and again closed, we get 2 (x...) strings appended.
+      sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}\[[^x]\]/s/.*/& (x${today})/" "$TODO_FILE"
+   }
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        echo "Subtasks of Item $item marked as $status"
