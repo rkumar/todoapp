@@ -21,12 +21,15 @@
 # the only configuration the user need do. The name of the output file
 TODO_FILE="TODO2.txt"
 COLORIZE=1   # if you want colored output, else comment out
+COLOR_SCHEME=1 # colrize on priority, 2 is status
 # COLORIZE requires external file colors.sh in PATH
 # get_serial_number required in path
 
 FULLAPPNAME="$0"
 APPNAME=$( basename $0 )
 VERSION="2.0.0"
+VERBOSE_FLAG=0
+FORCE_FLAG=0
 DATE="2009-12-16"
 AUTHOR="rkumar"
 today=$( date '+%Y-%m-%d' )
@@ -142,7 +145,8 @@ item_or_sub_exists ()
 die ()
 {
    message="$1"  # rem _
-   echo "$message" 1>&2
+   # no longer sending to stderr since it creates problems in unit test framework
+   echo "$message" #1>&2
    exit 1
 }
 
@@ -175,7 +179,7 @@ add ()
    appname=$( basename $( pwd ) )
    item=$( get_serial_number -a "$appname" -d "$(pwd)" )
    paditem=$( printf "%3s" $item )
-   [ -z "$item" ] && { echo "No item number to add"; exit 1; }
+   [ -z "$item" ] && { echo "Unexpected error! No task number to add"; exit 1; }
    [ ! -z "$project" ] && project=" +${project}"
    [ ! -z "$component" ] && component=" @${component}"
    [ ! -z "$priority" ] && priority=" (${priority})"
@@ -208,6 +212,7 @@ list ()
    [[ ! -z "$component" ]] && { items=$( echo "$items" | grep @${component} ) ; }
 
    if [[ "$COLORIZE" = "1"  ]]; then
+      #echo "INSIDE COLORIZE" 1>&2
       DEL="	"
       COL_BG_NORM=$(tput setab 9)
       COL_FG_NORM=$(tput setaf 9)
@@ -216,9 +221,13 @@ list ()
       COL_BG_GREEN=$( tput setab 2 )
       . colors.sh ## XXX put path outside
       #items=$( echo "$items" | sed "s/\(\[[ 1]\]\)/${COL_BG_RED}\1${COL_BG_NORM}/" )
+      # COL_FG_RED etc were not working in test environment for some reason... ah ! sh.
+      #s/${DEL}\[x\]/${DEL}${COL_FG_RED}[x]${COL_FG_NORM}/g; \
+      case $COLOR_SCHEME in
+         1)
       items=$( echo "$items" \
       | sed "s/\[?\]/${COL_BG_RED}[ ]${COL_BG_NORM}/; \
-      s/${DEL}\[x\]/${DEL}${COL_FG_RED}[x]${COL_FG_NORM}/g; \
+      s/${DEL}\[x\]/${DEL}${COLOR_RED}[x]${COLOR_DEFAULT}/g; \
       /\[ \] (A)/s/.*/${COLOR_YELLOW}&${COLOR_DEFAULT}/; \
       /\[ \] (B)/s/.*/${COLOR_WHITE}&${COLOR_DEFAULT}/; \
       /\[ \] (C)/s/.*/${COLOR_CYAN}&${COLOR_DEFAULT}/; \
@@ -226,12 +235,24 @@ list ()
       /\[ \] ([E-Z])/s/.*/${COLOR_BROWN}&${COLOR_DEFAULT}/; \
       s/\[X\]/${COL_BG_RED}[1]${COL_BG_NORM}/" 
       )
+            ;;
+         2)
+      items=$( echo "$items" \
+      | sed "s/\[?\]/${COL_BG_RED}[ ]${COL_BG_NORM}/; \
+      /${DEL}\[x\]/s/.*/${COLOR_BLUE}&${COLOR_DEFAULT}/; \
+      /${DEL}\[@\]/s/.*/${COLOR_GREEN}&${COLOR_DEFAULT}/; \
+      /${DEL}\[P\]/s/.*/${COLOR_RED}&${COLOR_DEFAULT}/; \
+      /${DEL}\[H\]/s/.*/${COLOR_RED}&${COLOR_DEFAULT}/; \
+      s/^\[X\]/${COL_BG_RED}[1]${COL_BG_NORM}/" 
+      )
+         ;;
+      esac
    fi
    # taking care of subtasks
    echo -e "$items" | tr -s '' | sed "s//        /g;s/${TAB}/ /g" | tr '' '\n'
-   shown=$( echo "$items" | wc -l ) 
-   echo 
-   echo "Shown $shown of $total items from $TODO_FILE"
+   #shown=$( echo "$items" | wc -l ) 
+   #echo 
+   #echo "Shown $shown of $total items from $TODO_FILE"
 }
 # ---------------------------------------------------------------------------- #
 # delete
@@ -247,13 +268,17 @@ delete ()
       item="$1"  # rem _
       #validate_item "$item" "$errmsg"
       item_or_sub_exists "$item" "$errmsg"
-      echo -n "Do you wish to delete: $todo" '[y/n] ' ; read ans
+      if [[ $FORCE_FLAG -gt 0 ]]; then
+         ans="Y"
+      else
+         echo -n "Do you wish to delete: $todo" '[y/n] ' ; read ans
+      fi
       case "$ans" in
          y*|Y*) 
          #sed -i.bak "/^$paditem/d" "$TODO_FILE"
          sed -i.bak ${lineno}'d' "$TODO_FILE"
          if [  $? -eq 0 ]; then
-            echo "Delete $item successful"
+            echo "$item: Delete successful."
             delchildren $item
          fi
          ;;
@@ -288,7 +313,7 @@ priority ()
    todo=$( echo "$todo" | sed "s/] /] ($newpri) /" )
    sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
    if [  $? -eq 0 ]; then
-      echo "Change priority for $item successful"
+      echo "$item: priority set to $newpri."
    fi
    cleanup
 }
@@ -310,11 +335,11 @@ depri ()
       todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
       sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
       if [  $? -eq 0 ]; then
-         echo "Removed priority for $item."
+         echo "$item: priority removed."
       fi
       cleanup
    else
-      echo "No priority found on: $todo."
+      echo "$item: no priority."
    fi
 }
 # ---------------------------------------------------------------------------- #
@@ -331,13 +356,13 @@ status ()
     errmsg="usage: $APPNAME status TASK# [start|pend|close|hold|next|unstarted] "
     newstatus=$( echo $status | sed 's/^start/@/;s/^pend/P/;s/^close/x/;s/hold/H/;s/next/1/;s/^unstarted/ /' )
     if [[ ${#newstatus} != 1 ]]; then
-       echo "Error! Given status invalid ($newstatus)"
+       echo "$newstatus: Status invalid."
        die "$errmsg"
     fi
     #validate_item "$item" "$errmsg"
     item_or_sub_exists "$item" "$errmsg"
     if grep -q "\[$newstatus\]" <<< "$todo"; then
-       echo "Skipping since already:$status."
+       echo "$item: No action taken since already $status."
     else
        case $ITEM_TYPE in
           1)
@@ -357,7 +382,7 @@ status ()
           ;;
        esac
        if [  $? -eq 0 ]; then
-          echo "Item $item marked as $status"
+          echo "$item: Marked as $status"
        else
           echo "Operation failed. "
        fi
@@ -378,12 +403,10 @@ validate_subtask ()
    #paditem=$( printf "%3s" $item )
    todo=$( grep -n "^ *-$SUBGAP$item${TAB}" "$TODO_FILE" )
    if [[ -z "$todo" ]]; then
-      die "Subtask $item not found in $TODO_FILE. $errmsg"
+      die "$item not found in $TODO_FILE. $errmsg"
    fi
    lineno=$( echo "$todo" | cut -d: -f1 )
    todo=$( echo "$todo" | cut -d: -f2 )
-   #item=$( expr $fullitem : '\([0-9]\+\)\.')
-   #validate_item "$item" "$errmsg"
 }
 subtask_exists ()
 {
@@ -398,7 +421,6 @@ subtask_exists ()
    return 0
 }
 
-# FIXME what if a child already marked as close. Appending date will do it 2 times.
 markchildren ()
 {
    local item="$1"
@@ -409,11 +431,13 @@ markchildren ()
    else
       return 0
    fi
-   echo -n "Do you wish to mark subtasks of $item" '[y/n] ' ; read ans
-   case "$ans" in
-      y*|Y*) : ;;
-      *) return 0;;
-   esac
+   if [[ -z "$RECURSIVE_FLAG" ]]; then
+      echo -n "Do you wish to mark subtasks of $item" '[y/n] ' ; read ans
+      case "$ans" in
+         y*|Y*) : ;;
+         *) return 0;;
+      esac
+   fi
    
    [[ "$status_text" = "close" ]] && { 
    # the ^x prevents already closed item from getting date appended
@@ -421,7 +445,7 @@ markchildren ()
    }
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
-       echo "Subtasks of Item $item marked as $status"
+       echo "Subtasks of Item $item marked as $status_text"
     else
        echo "Operation failed. "
     fi
@@ -454,13 +478,13 @@ addsub ()
    ## Is there a level below this one. Get the last one.
    full=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*${TAB}" "$TODO_FILE" | tail -1 )
    ## extract number
-      echo "full:$full"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "full:$full"
    if [[ -z "$full" ]]; then # no level below this one
       full=$( grep -n -e " ${fullitem}${TAB}" $TODO_FILE )
-      echo "2 full:$full"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "2 full:$full"
       #prev=$(echo "$full" | cut -d'-' -f2 | grep -o '^ [0-9\.]\+' | tr -d '[:space:]' ) 
       prev=$(echo "$full" | grep -o -e " *[0-9\.]\+${TAB}" | sed "s/[ $TAB]//g") 
-      echo "prev: $prev."
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "prev: $prev."
       [[ -z "$prev" ]] && { echo "Error. Can't find $fullitem"; exit 1; }
       last="$prev"
       line=$( expr "$full" : '^\([0-9]\+\):' )
@@ -468,14 +492,14 @@ addsub ()
       indent=$( expr "$full" : '^[0-9]\+:\([^\[]\+\)')
       indent+="    "
       indent=$( echo "$indent" | sed 's/./ /g' )
-      echo "x${indent}y"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "x${indent}y"
       newnum="${last}.1"
-      echo "newnum:$newnum"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "newnum:$newnum"
       # get higher level
    else
       # there is a level below this one. get last.
       last=$(echo "$full" | cut -d'-' -f2 | grep -o '^  *[0-9\.]\+' | tr -d '[:space:]' ) 
-      echo "last:$last"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "last:$last"
       [[ -z "$last" ]] && { die "Error 454: 'last' blank"; }
       # get line number of last
       lastchild=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*\.[0-9]*" "$TODO_FILE" | tail -1 )
@@ -487,21 +511,23 @@ addsub ()
       indent=$( expr "$full" : '^[0-9]\+:\( \+\)')
       [ $? -gt 0 ] && die "Error 461: expr. possibly full blank"
       #indent=$( expr "$last" : '\([^-0-9]\+\)' )
-      echo "X${indent}Y"
-      echo ""
-      echo "last:$last"
+      [[ $VERBOSE_FLAG -gt 0 ]] && {  
+         echo "X${indent}Y"
+         echo ""
+         echo "last:$last"
+      }
       highest=$( echo "$last" | cut -d' ' -f2 )
-      echo "line: $line, highest: $highest"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "line: $line, highest: $highest"
       base=$(expr $highest : '.*\.\([0-9]\+\)$')
       [ $? -gt 0 ] && die "Error 469: expr. possibly highest blank"
       len=$(( ${#highest}-${#base}-0 ))
-      echo "len: $len"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "len: $len"
       part1="${highest:0:${len}}"
       (( base++ ))
-      echo "next: $base, ${part1}.${base}"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "next: $base, ${part1}.${base}"
       newnum="${part1}.${base}"
       newnum=$( echo $newnum | tr -s '\.' )
-      echo "2 newnum:$newnum"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "2 newnum:$newnum"
    fi
    [ ! -z "$project" ] && project=" +${project}"
    [ ! -z "$component" ] && component=" @${component}"
@@ -517,8 +543,9 @@ addsub ()
    else
       newtodo+=" ($today)"
    fi
-   echo "LINE:"
-   echo "$newtodo"
+   [[ $VERBOSE_FLAG -gt 0 ]] && { echo "LINE:"
+      echo "$newtodo"
+   }
    [[ -z "$line" ]] && { echo "line blank!" ; exit 1; }
 ex - "$TODO_FILE"<<!
 ${line}a
@@ -528,13 +555,13 @@ x
 !
    
     if [  $? -eq 0 ]; then
-       echo "Subtask added to Item $fullitem."
+       echo "Added $newnum to $TODO_FILE"
+       RESULT="$newnum"
        #cat "$TODO_FILE"
     else
        echo "Operation failed. "
+       RESULT=
     fi
-    cleanup
-
 }
 
 # ---------------------------------------------------------------------------- #
@@ -566,17 +593,17 @@ renumber ()
       #[[ $? -eq 1  ]] && { die "Error: $from_item does not exist."; }
       die "Error: $from_item does not exist."; 
    }
-   echo "   OK. $from_item exists $todo"
+   [[ $VERBOSE_FLAG -gt 0 ]] && echo "   OK. $from_item exists $todo"
    old_todo="$todo"
    item_exists $to_item
    [[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
    #subtask_exists $to_item
    #[[ $? -eq 0  ]] && { die "Error: $to_item already exists."; }
-   echo "   all seems okay...:$old_todo"
-   from_item=$( printf "%3s" $from_item )
-   to_item=$( printf "%3s" $to_item )
-   sed -i.bak "/${from_item}.*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
-   echo "Changes made."
+   [[ $VERBOSE_FLAG -gt 0 ]] && echo "   all seems okay...:$old_todo"
+   f_item=$( printf "%3s" $from_item )
+   t_item=$( printf "%3s" $to_item )
+   sed -i.bak "/${f_item}.*${TAB}\[.\]/s/${f_item}/${t_item}/" "$TODO_FILE"
+   echo "$from_item renumbered to $to_item"
 #   sed -i.bak "/${from_item}\.[0-9\.]*${TAB}\[.\]/s/${from_item}/${to_item}/" "$TODO_FILE"
 }
 # ---------------------------------------------------------------------------- #
@@ -589,15 +616,16 @@ renumber ()
 # ---------------------------------------------------------------------------- #
 copyunder ()
 {
-   # the date is getting doubled when we copy FIXME
+   # the sed match will fail with a 3 digit number in top level task FIXME
    from_item=$1
    to_item=$2
    # extract text of mentioned item, but i seem to be removing everything upto the state
    #+ which means copied version will have open state.
    text=$( sed -n "/ ${from_item}${TAB}\[.\]/s/^.*\] //p" "$TODO_FILE" )
-   [[ -z "$text" ]] && { die "Could not get item text"; }
+   [[ -z "$text" ]] && { die "Error! Could not get item text"; }
    COPYING=1
    addsub $to_item "$text"
+   echo "Copied $from_item to $RESULT"
 }
 # ---------------------------------------------------------------------------- #
 # edit
@@ -680,7 +708,7 @@ redo ()
    get_serial_number -a "$appname" -d "$(pwd)" -z
    actnum=( $( cut -c1-3 $TODO_FILE | grep '[0-9]' | sort -n | tr -d ' ' ) )
    len="${#actnum[@]}"
-   echo "len $len" 1>&2
+   #echo "len $len" 1>&2
    for (( i = 1; i <= $len; i++ )); do
       item=$( get_serial_number -a "$appname" -d "$(pwd)" -s 1 )
       from_item="${actnum[i-1]}"
@@ -699,8 +727,8 @@ redo ()
       sed -n "/${from_item}\..*${TAB}\[.\]/s/${from_item}/${to_item}/p" "$TODO_FILE" >> "$TMPFILE"
    done
    cp "$TMPFILE" "$TODO_FILE"
-   echo "Operation complete. " 1>&2
-   echo "Backup saved as $BAKFILE. " 1>&2
+   echo "Operation complete." 1>&2
+   echo "Backup saved as $BAKFILE." 1>&2
    rm "$TMPFILE"
 }
 
@@ -719,12 +747,12 @@ tag ()
    [[ -z "$tag" ]] && { echo "Error: tag blank." 1>&2; exit 1; }
    item_or_sub_exists "$item" "$errmsg"
    if grep -q "@$tag" <<< "$todo"; then
-      echo "Already tagged with $tag. Skipping."
+      echo "$item already tagged with $tag."
    else
       todo=$( echo "$todo" | sed "s/ \(([0-9]\{4\}\)/ @$tag \1/" )
       sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
       if [  $? -eq 0 ]; then
-         echo "Added tag $tag for $item ($todo)."
+         echo "$item: added tag $tag"
       fi
       cleanup
    fi
@@ -756,6 +784,7 @@ case "$1" in                    # remove _
       ;;
    --colors)
      COLORIZE="1"
+     COLOR_SCHEME=1
      shift
      ;;
    --no-colors)
@@ -766,10 +795,33 @@ case "$1" in                    # remove _
      SORT_SERIAL=1
      shift
      ;;
+   --color-scheme)
+      case $2 in
+         priority)
+            COLOR_SCHEME=1;;
+         status)
+            COLOR_SCHEME=2;;
+         * )
+            COLOR_SCHEME=1;;
+      esac
+      shift 2
+      ;;
    -h|--help|-help)
       help 
       exit
       ;;
+   -V|--verbose)
+      (( VERBOSE_FLAG+=1 ))
+     shift
+     ;;
+   -R|--recursive)
+     RECURSIVE_FLAG=1
+     shift
+     ;;
+   --force)
+     FORCE_FLAG=1
+     shift
+     ;;
    *)
       echo
       echo "Error: Unknown option: $1" >&2   # rem _
@@ -797,7 +849,8 @@ case $action in
    "dep" | "depri")
       depri "$@" ;;
    "addsub" | "subadd")
-      addsub "$@" ;;
+      addsub "$@" 
+      cleanup;;
    #"sub" | "subtask")
       #subtask "$@" ;;
    "tag" )
