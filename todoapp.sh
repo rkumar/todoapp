@@ -476,6 +476,10 @@ addsub ()
    #validate_item "$item" "$errmsg"
    #validate_subtask "$fullitem" "$errmsg"
    ## Is there a level below this one. Get the last one.
+   if [[ "$fullitem" = "last" ]]; then
+      # derive last
+      fullitem=$( cut -c1-4 TODO2.txt | sort -u -n -r | head -1 | tr -d '[:space:]' )
+   fi
    full=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*${TAB}" "$TODO_FILE" | tail -1 )
    ## extract number
       [[ $VERBOSE_FLAG -gt 0 ]] && echo "full:$full"
