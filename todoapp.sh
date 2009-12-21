@@ -776,10 +776,10 @@ guess_error ()
       echo "*** Task Id usually given immediately AFTER action ***" 1>&2
    fi
    if [[ ! -z "$project" ]]; then
-      echo "You may have been trying 'add' or forgotten to provide an argument"
+      echo "You may have been trying 'add' or forgotten to provide an argument" 1>&2
    fi
    if [[ ! -z "$component" ]]; then
-      echo "You may have been trying 'add' or forgotten to provide an argument"
+      echo "You may have been trying 'add' or forgotten to provide an argument" 1>&2
    fi
 }
 
@@ -895,8 +895,7 @@ case $action in
       help;;
    * )
    guess_error "$@"
-   echo
-   echo "Action ($action) incorrect. Actions include add, addsub, delete, list, mark, priority." 1>&2
+   echo "Action ($action) incorrect. Actions include add, addsub, delete, list, mark, priority." 
    usage
    ;;
 esac

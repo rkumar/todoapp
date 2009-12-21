@@ -73,6 +73,4 @@ Written by rkumar.
   tag TASK# <tag>
     Add a keyword or tag to a task
 
-*Note:* the subtask subcommand will probably be removed soon. del, mark etc will work
-for both top-level and lower-level tasks. "addsub" will be required.
 ## 
