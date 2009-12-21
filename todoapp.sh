@@ -762,6 +762,27 @@ tag ()
    fi
 }
 
+# ---------------------------------------------------------------------------- #
+# guess_error
+# try to give a friendly message to user guessing what he might
+#+ have been attempting
+# @param   : param1 desc
+# @param   : param2 desc
+# @return  : returns 
+# ---------------------------------------------------------------------------- #
+guess_error ()
+{
+   if grep -q "^[1-9]" <<< "$action"; then
+      echo "*** Task Id usually given immediately AFTER action ***" 1>&2
+   fi
+   if [[ ! -z "$project" ]]; then
+      echo "You may have been trying 'add' or forgotten to provide an argument"
+   fi
+   if [[ ! -z "$component" ]]; then
+      echo "You may have been trying 'add' or forgotten to provide an argument"
+   fi
+}
+
 
 
 
@@ -771,14 +792,17 @@ while [[ $1 = -* ]]; do
 case "$1" in                    # remove _
    -P|--project)
       project="$2"
+      [[ "${2:0:1}" = "-" ]] && { echo "Possible missing project name"; }
       shift 2
       ;;
    -C|--component)
       component="$2"
+      [[ "${2:0:1}" = "-" ]] && { echo "Possible missing component name"; }
       shift 2
       ;;
    -p|--priority)
       priority="$2"
+      [[ "${2:0:1}" = "-" ]] && { echo "Possible missing priority"; }
       shift 2
       ;;
    -v|--version)
@@ -870,7 +894,9 @@ case $action in
    "help")
       help;;
    * )
-   echo "Action incorrect. Actions include add, addsub, delete, list, mark, priority." 1>&2
+   guess_error "$@"
+   echo
+   echo "Action ($action) incorrect. Actions include add, addsub, delete, list, mark, priority." 1>&2
    usage
    ;;
 esac
