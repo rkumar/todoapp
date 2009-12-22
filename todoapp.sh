@@ -37,6 +37,7 @@ DELIM=$'\t'
 TAB="	"
 SUBGAP="  "
 DATE_REGEX='[0-9]\{4\}-[0-9][0-9]-[0-9][0-9]'
+SHOW_ALL=1
 shopt -s extglob
 
 USAGE=$( printf "%s\n        %s" "$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] add <text>" \
@@ -211,7 +212,13 @@ list ()
    else
       sort_key="2"
    fi
-   items=$( sed -e :a -e '$!N;s/\n\( *\)-/\1-/;ta' -e 'P;D' "$TODO_FILE" | sort -t'	' -k$sort_key  | tr '' '\n' )
+   if [[ "$SHOW_ALL" -eq 0 ]]; then
+      regex='\[[^x]\]'
+   else
+      regex='.'
+   fi
+   # added grep . to remove blank lines which were making sed hang
+   items=$( grep "$regex" $TODO_FILE | sed -e :a -e '$!N;s/\n\( *\)-/\1-/;ta' -e 'P;D' | sort -t'	' -k$sort_key  | tr '' '\n' )
    #total=$( echo "$items" | wc -l ) 
    filter=""
    [[ ! -z "$project" ]] && { items=$( echo "$items" | grep +${project} ) ; }
@@ -827,6 +834,15 @@ highest ()
 ## -- getopts stuff -- ##
 while [[ $1 = -* ]]; do
 case "$1" in                    # remove _
+   -A|--show-all)
+      # option for list. to show all records, even completed (justin case default changes later)
+      SHOW_ALL=1
+      shift;;
+   --hide-completed)
+      # option for list, to show all but completed
+      HIDE_COMPLETED=1
+      SHOW_ALL=0
+      shift;;
    -P|--project)
       project="$2"
       [[ "${2:0:1}" = "-" ]] && { echo "Possible missing project name"; }
