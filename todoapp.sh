@@ -228,6 +228,9 @@ list ()
       items=$( echo "$items" \
       | sed "s/\[?\]/${COL_BG_RED}[ ]${COL_BG_NORM}/; \
       s/${DEL}\[x\]/${DEL}${COLOR_RED}[x]${COLOR_DEFAULT}/g; \
+      s/${DEL}\[@\]/${DEL}${COLOR_GREEN}[@]${COLOR_DEFAULT}/g; \
+      s/${DEL}\[H\]/${DEL}${COLOR_RED}[H]${COLOR_DEFAULT}/g; \
+      s/${DEL}\[P\]/${DEL}${COLOR_RED}[P]${COLOR_DEFAULT}/g; \
       /\[ \] (A)/s/.*/${COLOR_YELLOW}&${COLOR_DEFAULT}/; \
       /\[ \] (B)/s/.*/${COLOR_WHITE}&${COLOR_DEFAULT}/; \
       /\[ \] (C)/s/.*/${COLOR_CYAN}&${COLOR_DEFAULT}/; \
@@ -354,6 +357,28 @@ status ()
    status="$2"  # rem _
 
     errmsg="usage: $APPNAME status TASK# [start|pend|close|hold|next|unstarted] "
+    # making statuses more forgiving
+    case "$status" in
+       @|sta|star|start|started)
+          status=start;;
+       P|pen|pend|pending)
+          status=pend;;
+       x|clo|clos|close|closed)
+          status=close;;
+       1|next)
+          status=next;;
+       H|hold) status=hold;;
+       u|uns|unst|unstart|unstarted) status=unstarted;;
+       * )
+          echo -n "$status: not a known status. Sure you wish to go ahead?" '[y/n] ' ; read ans
+          case "$ans" in
+             y*|Y*) : 
+             ;;
+             *) echo "No action taken."; die "$errmsg";;
+          esac
+       
+       ;;
+    esac
     newstatus=$( echo $status | sed 's/^start/@/;s/^pend/P/;s/^close/x/;s/hold/H/;s/next/1/;s/^unstarted/ /' )
     if [[ ${#newstatus} != 1 ]]; then
        echo "$newstatus: Status invalid."
@@ -824,6 +849,7 @@ case "$1" in                    # remove _
      shift
      ;;
    --color-scheme)
+     COLORIZE="1"
       case $2 in
          priority)
             COLOR_SCHEME=1;;
