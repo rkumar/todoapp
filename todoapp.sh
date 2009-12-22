@@ -114,6 +114,12 @@ validate_item ()
 }
 item_exists () {
    local item=$1
+   # making interface friendlier, so one can script. 
+   # In place of item, give last since we don't know last in a batch.
+   if [[ "$item" = "last" ]]; then
+      # derive last
+      item=$( cut -c1-4 "$TODO_FILE" | sort -u -n -r | head -1 | tr -d '[:space:]' )
+   fi
    paditem=$( printf "%3s" $item )
    todo=$( grep -n "^$paditem" "$TODO_FILE" )
    if [[ -z "$todo" ]]; then
@@ -503,7 +509,7 @@ addsub ()
    ## Is there a level below this one. Get the last one.
    if [[ "$fullitem" = "last" ]]; then
       # derive last
-      fullitem=$( cut -c1-4 TODO2.txt | sort -u -n -r | head -1 | tr -d '[:space:]' )
+      fullitem=$( cut -c1-4 "$TODO_FILE" | sort -u -n -r | head -1 | tr -d '[:space:]' )
    fi
    full=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*${TAB}" "$TODO_FILE" | tail -1 )
    ## extract number
@@ -808,6 +814,12 @@ guess_error ()
    fi
 }
 
+# displays last added task number (top level).
+# This does not return last added subtask
+highest ()
+{
+   cut -c1-4 "$TODO_FILE" | sort -u -n -r | head -1 | tr -d '[:space:]' 
+}
 
 
 
@@ -917,6 +929,8 @@ case $action in
       edit "$@" ;;
    "redo" )
       redo;;
+   "highest" )
+      highest;;
    "help")
       help;;
    * )
