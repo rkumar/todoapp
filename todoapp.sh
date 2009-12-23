@@ -114,12 +114,13 @@ validate_item ()
    fi
 }
 item_exists () {
-   local item=$1
+   item=$1 # sets item, globally
    # making interface friendlier, so one can script. 
    # In place of item, give last since we don't know last in a batch.
    if [[ "$item" = "last" ]]; then
       # derive last
       item=$( cut -c1-4 "$TODO_FILE" | sort -u -n -r | head -1 | tr -d '[:space:]' )
+      last="$item"
    fi
    paditem=$( printf "%3s" $item )
    todo=$( grep -n "^$paditem" "$TODO_FILE" )
@@ -134,7 +135,7 @@ item_exists () {
 
 item_or_sub_exists ()
 {
-   local item=$1
+   item=$1
    item_exists $item
    if [  $? -eq 0 ]; then
       return 0
@@ -296,11 +297,14 @@ list ()
 delete ()
 {
    errmsg="usage: $APPNAME delete #item ..."
+   if [  $# -eq 0 ]; then
+      die "Item number required. $errmsg";
+   fi
    numargs=$#
    for ((i=1 ; i <= numargs ; i++)); do
       item="$1"  # rem _
       #validate_item "$item" "$errmsg"
-      item_or_sub_exists "$item" "$errmsg"
+      item_or_sub_exists "$1" "$errmsg"
       if [[ $FORCE_FLAG -gt 0 ]]; then
          ans="Y"
       else
@@ -508,6 +512,8 @@ markchildren ()
 delchildren ()
 {
    local item="$1"
+   [[ "$item" = "last"  ]] && { echo "Error: delchildren got $item ." 1>&2; exit 1; }
+   [[ -z "$item"  ]] && { echo "Error: delchildren got blank item ." 1>&2; exit 1; }
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/d" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        echo "Subtasks of Item $item deleted"
