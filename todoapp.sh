@@ -212,17 +212,34 @@ list ()
    else
       sort_key="2"
    fi
+   # added grep . to remove blank lines which were making sed hang
    if [[ "$SHOW_ALL" -eq 0 ]]; then
       regex='\[[^x]\]'
    else
       regex='.'
    fi
-   # added grep . to remove blank lines which were making sed hang
-   items=$( grep "$regex" $TODO_FILE | sed -e :a -e '$!N;s/\n\( *\)-/\1-/;ta' -e 'P;D' | sort -t'	' -k$sort_key  | tr '' '\n' )
+   items=$( grep "$regex" $TODO_FILE )
+   [[ ! -z "$project" ]] && { items=$( echo "$items" | grep "+${project}" ) ; }
+   [[ ! -z "$component" ]] && { items=$( echo "$items" | grep "@${component}" ) ; }
+
+   # all remaining args are used to grep
+   # if arg is preceded by hyphen, then search inverse (not matching).
+   numargs=$#
+   for ((i=1 ; i <= numargs ; i++)); do
+      if [[ "${1:0:1}" = "-"  ]]; then
+         items=$( echo "$items" | grep -v "${1:1}" )
+      else
+         items=$( echo "$items" | grep "$1" )
+      fi
+      shift
+   done
+
+   # join lines starting with hyphen, so sorting keeps subtasks with main task.
+   # All lines starting with hyphen are joined with previous line using C-b
+   items=$( echo "$items" | sed -e :a -e '$!N;s/\n\( *\)-/\1-/;ta' -e 'P;D' | sort -t'	' -k$sort_key  | tr '' '\n' )
    #total=$( echo "$items" | wc -l ) 
    filter=""
-   [[ ! -z "$project" ]] && { items=$( echo "$items" | grep +${project} ) ; }
-   [[ ! -z "$component" ]] && { items=$( echo "$items" | grep @${component} ) ; }
+
 
    if [[ "$COLORIZE" = "1"  ]]; then
       #echo "INSIDE COLORIZE" 1>&2
@@ -838,7 +855,7 @@ case "$1" in                    # remove _
       # option for list. to show all records, even completed (justin case default changes later)
       SHOW_ALL=1
       shift;;
-   --hide-completed)
+   -x|--hide-completed)
       # option for list, to show all but completed
       HIDE_COMPLETED=1
       SHOW_ALL=0
@@ -863,12 +880,12 @@ case "$1" in                    # remove _
      echo "by $AUTHOR. This software is under the GPL License."
      exit
       ;;
-   --colors)
+   --color|--colors)
      COLORIZE="1"
      COLOR_SCHEME=1
      shift
      ;;
-   --no-colors)
+   --no-color|--no-colors)
      COLORIZE="0"
      shift
      ;;

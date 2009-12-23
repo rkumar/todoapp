@@ -1,18 +1,11 @@
 #!/bin/sh
-
-#rm serial_numbers
-#rm TODO2.txt
-test_description='basic add and list functionality
-
-This test just makes sure the basic add and list
-command work.
-'
+test_description="Testing out addlist "
 . ./test-lib.sh
 
-#
-# Add and list
-#
-test_todo_session 'basic add/list' <<EOF
+
+
+
+test_todo_session "Testing of addlist" <<EOF
 >>> todoapp.sh add Adding first task 1
 Added 1 to TODO2.txt
 
@@ -46,9 +39,6 @@ Added 2.1.2 to TODO2.txt
                    -  2.1.1 [ ] Adding first sub-task 2.1.1 (2009-02-13)
                    -  2.1.2 [ ] Adding 2nd sub-task 2.1.2 (2009-02-13)
 
-EOF
-
-test_todo_session 'mark' <<EOF
 >>> todoapp.sh mark 1.1 start
 1.1: Marked as start
 
@@ -65,12 +55,12 @@ Subtasks of Item 2 marked as start
 
 >>> todoapp.sh list
   1 [ ] Adding first task 1 (2009-02-13)
-        -  1.1 [@] Adding first sub-task 1.1 (2009-02-13)
-        -  1.2 [@] Adding 2nd sub-task 1.2 (2009-02-13)
-  2 [@] Adding second task 2 (2009-02-13)
-        -  2.1 [@] Adding first sub-task 2.1 (2009-02-13)
-                   -  2.1.1 [@] Adding first sub-task 2.1.1 (2009-02-13)
-                   -  2.1.2 [@] Adding 2nd sub-task 2.1.2 (2009-02-13)
+        -  1.1 [0;32m[@][0m Adding first sub-task 1.1 (2009-02-13)
+        -  1.2 [0;32m[@][0m Adding 2nd sub-task 1.2 (2009-02-13)
+  2 [0;32m[@][0m Adding second task 2 (2009-02-13)
+        -  2.1 [0;32m[@][0m Adding first sub-task 2.1 (2009-02-13)
+                   -  2.1.1 [0;32m[@][0m Adding first sub-task 2.1.1 (2009-02-13)
+                   -  2.1.2 [0;32m[@][0m Adding 2nd sub-task 2.1.2 (2009-02-13)
 
 EOF
 test_done

@@ -28,7 +28,7 @@ esac
 done
 
 if [[ -z "$1" ]]; then
-   echo -n "Test Description (short, no spaces): "
+   echo -n "Test Description (short, no spaces): " 1>&2
    read td
 else
    td="$1"
@@ -65,7 +65,7 @@ str=""
 ## get user input, stop when user enters 'bye'
 while read line
 do
-   echo -n ">>> "
+#   echo -n ">>> "
 #   read line
    [ -z "$line" ] && { echo "bye to quit"; continue; }
    [[ "$line" = "bye" ]] && break;
@@ -108,4 +108,4 @@ serno=$( printf "%04s" "$serno" )
 filename="../t${serno}-${filesuffix}.sh"
 cp -i "$out" "$filename"
 chmod +x "$filename"
-echo "Please rename $filename"
+echo "Please rename $filename to prevent possible overwriting"

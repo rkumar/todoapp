@@ -109,7 +109,7 @@ Subtasks of Item 1 marked as close
         -  4.1 [ ] evaluate shunit (2009-02-13)
         -  4.2 [ ] evaluate shunit2 @FIXME (2009-02-13)
   3 [ ] +ruby @r1.9 upgrade ruby 1.9 (2009-02-13)
-  2 [@] (B) +ruby upgrade rubygems (2009-02-13)
+  2 [0;32m[@][0m (B) +ruby upgrade rubygems (2009-02-13)
   1 [0;31m[x][0m upgrade macports @URG (2009-02-13) (x2009-02-14)
         -  1.1 [0;31m[x][0m upgrade coreutils (2009-02-13) (x2009-02-14)
 
