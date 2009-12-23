@@ -40,20 +40,31 @@ Written by rkumar.
   delete
      delete TASK#
      Deletes item and child items
+     --force  does not prompt user
 
   mark | status TASK# <state> 
      Change the state of the given item to <state>
      state - one of start,close, unstarted, pend, hold, next
+     --recursive  changes state of subtasks without prompting
 
-  list
+  list [search-terms]
      Listing of tasks
      list sub-options:
-     --no-colors  don't show colors
-     --colors     show colors
+     --no-colors  - don't show colors
+     --colors     - show colors  (default)
+     --color-scheme priority  - show priorities in separate colors (default)
+     --color-scheme status  - show statuses in separate colors
+     --sort-serial  - sorts on task id rather than priority
+     --hide-completed - do not list completed tasks
+     --show-all - show all tasks (default)
+     -P | --project <name> - show for this project only
+     -C | --component <name> - show for this component only
 
   addsub TASK# [args]
-     add TASK# text
-     Add a subtask to the given item/subtask with given text
+     addsub TASK# text
+        Add a subtask to the given item/subtask with given text
+     addsub last text
+        Adds text as a subtask under highest task (useful when adding from script)
 
   renumber TASK# TASK#
     Renumber a top level task to another (empty/deleted) number
