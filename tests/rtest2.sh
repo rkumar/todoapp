@@ -62,13 +62,15 @@ fi
 str=""
 > "$out"
 
+history -r .rtest2.history
 ## get user input, stop when user enters 'bye'
-while read line
+while read -ep ">>> " line
 do
 #   echo -n ">>> "
 #   read line
    [ -z "$line" ] && { echo "bye to quit"; continue; }
    [[ "$line" = "bye" ]] && break;
+   [ -n "$line" ] && history -s "$line"
 
    ## user can execute test_tick in current shell
    [[ "$line" = *test_tick* ]] && {
@@ -77,7 +79,16 @@ do
       test_tick $times;
    }
 
-   [[ "$line" = "ls" || "$line" = "list" ]] && line="t --sort-serial list";
+   if grep -q "^list" <<< "$line"; then
+      line=$( echo "$line" | sed 's/^list/t --sort-serial list/')
+   fi
+   if grep -q "^ls" <<< "$line"; then
+      line=$( echo "$line" | sed 's/^ls/t --sort-serial --no-colors list/')
+   fi
+   line=$(echo "$line" | sed 's/--ss /--sort-serial /')
+   line=$(echo "$line" | sed 's/--nc /--no-colors /')
+   #[[ "$line" = "list" ]] && line="t --sort-serial list";
+   #[[ "$line" = "ls" ]] && line="t --sort-serial --no-colors list";
    line=$(echo "$line" | sed 's/^t /todoapp.sh /')
    echo ">>> $line" >> $out
    eval "$line" | tee -a "$out"

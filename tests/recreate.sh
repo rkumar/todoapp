@@ -18,9 +18,9 @@ if grep -q CATEOF "$oldfile"; then
 fi
 str=$( echo "$oldfile" | sed 's/^t[0-9]*-//;s/.sh$//' )
 echo "Using suffix:$str"
-read
+read -p "press enter "
 grep '^>>> ' "$oldfile" | sed 's/^>>> //' 
-read
+read -p "press enter "
 grep '^>>> ' "$oldfile" | sed 's/^>>> //' | ./rtest2.sh $LOADSTR "$str"
 
 echo
