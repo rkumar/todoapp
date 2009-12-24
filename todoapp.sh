@@ -20,6 +20,7 @@
 
 # the only configuration the user need do. The name of the output file
 TODO_FILE="TODO2.txt"
+ARCHIVE_FILE="oldtodo.txt"
 COLORIZE=1   # if you want colored output, else comment out
 COLOR_SCHEME=1 # colrize on priority, 2 is status
 # COLORIZE requires external file colors.sh in PATH
@@ -320,6 +321,7 @@ delete ()
       case "$ans" in
          y*|Y*) 
          #sed -i.bak "/^$paditem/d" "$TODO_FILE"
+         sed  ${lineno}'!d' "$TODO_FILE" >> "$BAKFILE"
          sed -i.bak ${lineno}'d' "$TODO_FILE"
          if [  $? -eq 0 ]; then
             echo "$item: Delete successful."
@@ -521,6 +523,7 @@ delchildren ()
    local item="$1"
    [[ "$item" = "last"  ]] && { echo "Error: delchildren got $item ." 1>&2; exit 1; }
    [[ -z "$item"  ]] && { echo "Error: delchildren got blank item ." 1>&2; exit 1; }
+   sed "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/!d" "$TODO_FILE" >> "$BAKFILE"
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/d" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        echo "Subtasks of Item $item deleted"
@@ -858,6 +861,32 @@ highest ()
    cut -c1-4 "$TODO_FILE" | sort -u -n -r | head -1 | tr -d '[:space:]' 
 }
 
+# ---------------------------------------------------------------------------- #
+# archive
+# copies off completed tasks to archive.txt
+# @param   : item item numbers or 'completed'/'closed'
+# @return  : 0 or 1
+# ---------------------------------------------------------------------------- #
+archive ()
+{
+   item="$1"  # item numbers or 'completed'/'closed' rem _
+   # This is simple and easy but moves off subitems too
+   # They would get separated from top level task in archive
+   #+ file.
+   ## sed "/${TAB}\[x\]/!d" "$TODO_FILE" >> "$ARCHIVE_FILE"
+
+   FORCE_FLAG=1
+   items=$( grep "^ *[0-9][0-9]*${TAB}\[x\] " "$TODO_FILE" | cut -c1-4 )
+   echo "closed:$items"
+   for ite in "$items"; do
+      echo "$ite"
+      delete $ite
+   done
+   if [  $? -eq 0 ]; then
+      echo "Archived completed/closed tasks to $ARCHIVE_FILE"
+   fi
+}
+
 
 
 ## ADD functions above
@@ -967,6 +996,7 @@ case $action in
    "p" | "pri" )
       priority "$@" ;;
    "del" | "delete")
+      BAKFILE="deltodo.txt"
       delete "$@" ;;
    "dep" | "depri")
       depri "$@" ;;
@@ -989,6 +1019,9 @@ case $action in
       highest;;
    "help")
       help;;
+   "archive")
+      BAKFILE="$ARCHIVE_FILE"
+      archive "$@" ;;
    * )
    guess_error "$@"
    echo "Action ($action) incorrect. Actions include add, addsub, delete, list, mark, priority." 
