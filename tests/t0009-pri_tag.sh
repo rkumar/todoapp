@@ -84,34 +84,5 @@ Added 4.2 to TODO2.txt
   1 [ ] upgrade macports @URG (2009-02-13)
         -  1.1 [ ] upgrade coreutils (2009-02-13)
 
->>> test_tick
-
->>> todoapp.sh --recursive mark 1 close
-1: Marked as close
-Subtasks of Item 1 marked as close
-
->>> todoapp.sh list
-[1;37m  2 [ ] (B) +ruby upgrade rubygems (2009-02-13)[0m
-[0;32m  4 [ ] (D) +testing evaluate test frameworks (2009-02-13)[0m
-        -  4.1 [ ] evaluate shunit (2009-02-13)
-        -  4.2 [ ] evaluate shunit2 @FIXME (2009-02-13)
-  3 [ ] +ruby @r1.9 upgrade ruby 1.9 (2009-02-13)
-  1 [0;31m[x][0m upgrade macports @URG (2009-02-13) (x2009-02-14)
-        -  1.1 [0;31m[x][0m upgrade coreutils (2009-02-13) (x2009-02-14)
-
->>> test_tick
-
->>> todoapp.sh --recursive mark 2 start
-2: Marked as start
-
->>> todoapp.sh list
-[0;32m  4 [ ] (D) +testing evaluate test frameworks (2009-02-13)[0m
-        -  4.1 [ ] evaluate shunit (2009-02-13)
-        -  4.2 [ ] evaluate shunit2 @FIXME (2009-02-13)
-  3 [ ] +ruby @r1.9 upgrade ruby 1.9 (2009-02-13)
-  2 [0;32m[@][0m (B) +ruby upgrade rubygems (2009-02-13)
-  1 [0;31m[x][0m upgrade macports @URG (2009-02-13) (x2009-02-14)
-        -  1.1 [0;31m[x][0m upgrade coreutils (2009-02-13) (x2009-02-14)
-
 EOF
 test_done

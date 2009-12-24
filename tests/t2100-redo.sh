@@ -78,6 +78,8 @@ EOF
 test_todo_session 'redo' <<EOF
 
 >>> todoapp.sh redo 2>&1 2>/dev/null >/dev/null
+Operation complete.
+Backup saved as TODO2.txt.bak.2009-02-13.
 
 >>> todoapp.sh --no-colors --sort-serial list
   1 [ ] adding a 14234 task 2 (2009-02-13)

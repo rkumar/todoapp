@@ -20,7 +20,7 @@ CATEOF
 test_todo_session "Testing of close2" <<EOF
 >>> todoapp.sh --recursive mark 3.2 close
 3.2: Marked as close
-Subtasks of Item 3.2 marked as close
+1 subtasks of task 3.2 marked as close
 
 >>> todoapp.sh list
   1 [ ] Adding first task 1 (2009-02-13)
@@ -37,7 +37,7 @@ Subtasks of Item 3.2 marked as close
 
 >>> todoapp.sh --recursive  mark 3 close
 3: Marked as close
-Subtasks of Item 3 marked as close
+1 subtasks of task 3 marked as close
 
 >>> todoapp.sh list
   1 [ ] Adding first task 1 (2009-02-13)
@@ -54,7 +54,7 @@ Subtasks of Item 3 marked as close
 
 >>> todoapp.sh --force delete 3.2
 3.2: Delete successful.
-Subtasks of Item 3.2 deleted
+1 subtasks of task 3.2 deleted
 
 >>> todoapp.sh list
   1 [ ] Adding first task 1 (2009-02-13)
@@ -69,7 +69,7 @@ Subtasks of Item 3.2 deleted
 
 >>> todoapp.sh --force delete 3
 3: Delete successful.
-Subtasks of Item 3 deleted
+1 subtasks of task 3 deleted
 
 >>> todoapp.sh list
   1 [ ] Adding first task 1 (2009-02-13)

@@ -544,7 +544,8 @@ test_todo_session () {
 		if [ $status = 0 ]; then
 		    test_expect_success "$1 $subnum" "$cmd > output && test_cmp expect output"
 		else
-		    test_expect_success "$1 $subnum" "$cmd > output || test $? = $status && test_cmp expect output"
+		    #test_expect_success "$1 $subnum" "$cmd > output || test $? = $status && test_cmp expect output"
+		    test_expect_success "$1 $subnum" "$cmd > output 2>&1 || test $? = $status && test_cmp expect output"
 		fi
 
 		subnum=$(($subnum + 1))

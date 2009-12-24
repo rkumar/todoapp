@@ -514,7 +514,7 @@ markchildren ()
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
        lines=$( diff "$TODO_FILE" "$TODO_FILE".bak | grep '^>' |  wc -l )
-       echo "$lines subtasks of task $item marked as $status_text"
+       [ $lines -gt 0 ] && echo "$lines subtasks of task $item marked as $status_text"
     else
        echo "Operation failed. "
     fi

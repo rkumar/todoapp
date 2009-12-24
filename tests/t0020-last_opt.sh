@@ -23,11 +23,11 @@ Added 3.1 to TODO2.txt
 
 >>> todoapp.sh --recursive mark last start
 3: Marked as start
-Subtasks of Item 3 marked as start
+1 subtasks of task 3 marked as start
 
 >>> todoapp.sh --recursive mark last close
 3: Marked as close
-Subtasks of Item 3 marked as close
+1 subtasks of task 3 marked as close
 
 >>> todoapp.sh --no-colors list
   2 [ ] add another task (2009-02-13)
@@ -38,7 +38,7 @@ Subtasks of Item 3 marked as close
 
 >>> todoapp.sh --force delete last
 3: Delete successful.
-Subtasks of Item 3 deleted
+1 subtasks of task 3 deleted
 
 >>> todoapp.sh --no-colors list
   2 [ ] add another task (2009-02-13)

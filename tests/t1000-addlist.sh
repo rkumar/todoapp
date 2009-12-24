@@ -47,11 +47,10 @@ Added 2.1.2 to TODO2.txt
 
 >>> todoapp.sh --recursive mark 2 start
 2: Marked as start
-Subtasks of Item 2 marked as start
+3 subtasks of task 2 marked as start
 
 >>> todoapp.sh --recursive mark 2 start
 2: No action taken since already start.
-Subtasks of Item 2 marked as start
 
 >>> todoapp.sh list
   1 [ ] Adding first task 1 (2009-02-13)

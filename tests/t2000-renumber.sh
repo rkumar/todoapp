@@ -196,7 +196,7 @@ Error: 3 already exists.
 
 >>> todoapp.sh --force delete 3
 3: Delete successful.
-Subtasks of Item 3 deleted
+3 subtasks of task 3 deleted
 
 >>> todoapp.sh --no-colors list
   1 [ ] Adding first task 1 (2009-02-13)

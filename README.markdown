@@ -86,4 +86,6 @@ Written by rkumar.
   tag TASK# <tag>
     Add a keyword or tag to a task
 
+  archive
+    move closed tasks to archive.txt
 ## 
