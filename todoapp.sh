@@ -235,9 +235,16 @@ list ()
       shift
    done
 
+   [[ -n "$HIDE_NUMBERING" || -n "$RENUMBER" ]] && {
+       items=$( echo "$items" | cut -c4- | sed 's/^\( *- *\)[1-9][0-9\.]*/\1/' )
+   }
    # join lines starting with hyphen, so sorting keeps subtasks with main task.
    # All lines starting with hyphen are joined with previous line using C-b
-   items=$( echo "$items" | sed -e :a -e '$!N;s/\n\( *\)-/\1-/;ta' -e 'P;D' | sort -t'	' -k$sort_key  | tr '' '\n' )
+   items=$( echo "$items" | sed -e :a -e '$!N;s/\n\( *\)-/\1-/;ta' -e 'P;D' | sort -t'	' -k$sort_key  )
+  
+   [ -n "$RENUMBER" ] && { items=$( echo "$items" | nl -w4) ; }
+   total=$( echo "$items" | wc -l ) 
+   items=$( echo "$items" |  tr '' '\n' )
    #total=$( echo "$items" | wc -l ) 
    filter=""
 
@@ -866,6 +873,16 @@ case "$1" in                    # remove _
       HIDE_COMPLETED=1
       SHOW_ALL=0
       shift;;
+   --hide-numbering)
+      # option for list, to hide numbering, since default sorts on priority which if not set
+      # sorts on task name.
+      HIDE_NUMBERING=1
+      ;;
+   --renumber)
+      # option for list, to hide numbering, since default sorts on priority which if not set
+      # sorts on task name.
+      RENUMBER=1
+      ;;
    -P|--project)
       project="$2"
       [[ "${2:0:1}" = "-" ]] && { echo "Possible missing project name"; }

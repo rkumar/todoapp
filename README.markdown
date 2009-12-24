@@ -59,6 +59,8 @@ Written by rkumar.
      --show-all - show all tasks (default)
      -P | --project <name> - show for this project only
      -C | --component <name> - show for this component only
+     --hide-numbering - do not show numbers on left
+     --renumber - numbers top level tasks after sorting (these are temporary numbers)
 
   addsub TASK# [args]
      addsub TASK# text
