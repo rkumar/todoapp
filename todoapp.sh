@@ -155,7 +155,7 @@ die ()
 {
    message="$1"  # rem _
    # no longer sending to stderr since it creates problems in unit test framework
-   echo "$message" #1>&2
+   echo "$message" 1>&2
    exit 1
 }
 
@@ -513,23 +513,35 @@ markchildren ()
    }
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/s/${TAB}\[.\]/${TAB}[$newstatus]/" "$TODO_FILE"
     if [  $? -eq 0 ]; then
-       echo "Subtasks of Item $item marked as $status_text"
+       lines=$( diff "$TODO_FILE" "$TODO_FILE".bak | grep '^>' |  wc -l )
+       echo "$lines subtasks of task $item marked as $status_text"
     else
        echo "Operation failed. "
     fi
 }
+## 1. 2009-12-24 18:03 added some kind of check to see if subtasks actually deleted
+##+ to prevent false reporting. stat did not work since mod time between master and child
+##+ was less than a second.
 delchildren ()
 {
    local item="$1"
    [[ "$item" = "last"  ]] && { echo "Error: delchildren got $item ." 1>&2; exit 1; }
    [[ -z "$item"  ]] && { echo "Error: delchildren got blank item ." 1>&2; exit 1; }
    sed "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/!d" "$TODO_FILE" >> "$BAKFILE"
+   lines1=$( wc -l $TODO_FILE )
+   lines1=$(echo "${lines1%% *}" )
    sed -i.bak "/^ *-$SUBGAP${item}\.[0-9\.]*${TAB}/d" "$TODO_FILE"
-    if [  $? -eq 0 ]; then
-       echo "Subtasks of Item $item deleted"
-    else
-       echo "Operation failed. "
-    fi
+   retval=$?
+   lines2=$( wc -l $TODO_FILE )
+   lines2=$(echo "${lines2%% *}" )
+   removed=$(( lines1-lines2 )) 
+   if [  $retval -eq 0 ]; then
+      if [ "$lines1" != "$lines2" ]; then # 1.
+         echo "$removed subtasks of task $item deleted"
+      fi
+   else
+      echo "Operation failed. "
+   fi
 }
 
 # ---------------------------------------------------------------------------- #
@@ -776,7 +788,7 @@ redo ()
    #echo -e "$items" | tr -s '' | sed 's//        /g;s/	/ /g' | tr '' '\n'
 
    TMPFILE="TMPFILE.$$"
-   BAKFILE="$TODO_FILE".bak.$$
+   BAKFILE="$TODO_FILE".bak.$today
    cp "$TODO_FILE" "$BAKFILE"
    > "$TMPFILE"
    appname=$( basename $( pwd ) )
@@ -802,8 +814,8 @@ redo ()
       sed -n "/${from_item}\..*${TAB}\[.\]/s/${from_item}/${to_item}/p" "$TODO_FILE" >> "$TMPFILE"
    done
    cp "$TMPFILE" "$TODO_FILE"
-   echo "Operation complete." 1>&2
-   echo "Backup saved as $BAKFILE." 1>&2
+   echo "Operation complete." 
+   echo "Backup saved as $BAKFILE." 
    rm "$TMPFILE"
 }
 
@@ -869,21 +881,34 @@ highest ()
 # ---------------------------------------------------------------------------- #
 archive ()
 {
-   item="$1"  # item numbers or 'completed'/'closed' rem _
+   items="$@"  # item numbers or 'completed'/'closed' rem _
+   [[ -z "$items" ]] && { items="closed";}
    # This is simple and easy but moves off subitems too
    # They would get separated from top level task in archive
    #+ file.
    ## sed "/${TAB}\[x\]/!d" "$TODO_FILE" >> "$ARCHIVE_FILE"
 
-   FORCE_FLAG=1
-   items=$( grep "^ *[0-9][0-9]*${TAB}\[x\] " "$TODO_FILE" | cut -c1-4 )
-   echo "closed:$items"
+   FORCE_FLAG=1 # don't prompt when deleting
+   # select main tasks that are completed. We assume their
+   #+ subtasks are complete too.
+   case "$items" in
+      closed|comp|complete|completed)
+      items=$( grep "^ *[0-9][0-9]*${TAB}\[x\] " "$TODO_FILE" | cut -c1-4 )
+         ;;
+   esac
+   [[ -z "$items" ]] && { echo "Nothing to archive."; exit 0; }
+   #echo "closed:$items"
+   declare i ctr=0
    for ite in "$items"; do
-      echo "$ite"
-      delete $ite
+      #echo "$ite ..."
+      delete $ite > /dev/null
+      if [ $? -eq 0 ]; then 
+         echo "$ite: archived"
+         (( ctr++ ))
+      fi
    done
-   if [  $? -eq 0 ]; then
-      echo "Archived completed/closed tasks to $ARCHIVE_FILE"
+   if [ $? -eq 0 ]; then
+      [ $ctr -gt 0 ] && echo "Archived $ctr completed/closed tasks to $ARCHIVE_FILE"
    fi
 }
 
