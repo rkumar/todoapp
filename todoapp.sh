@@ -877,12 +877,12 @@ case "$1" in                    # remove _
       # option for list, to hide numbering, since default sorts on priority which if not set
       # sorts on task name.
       HIDE_NUMBERING=1
-      ;;
+      shift;;
    --renumber)
       # option for list, to hide numbering, since default sorts on priority which if not set
       # sorts on task name.
       RENUMBER=1
-      ;;
+      shift;;
    -P|--project)
       project="$2"
       [[ "${2:0:1}" = "-" ]] && { echo "Possible missing project name"; }
