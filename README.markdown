@@ -94,6 +94,14 @@ Written by rkumar.
     archive TASK# ...
        archive the given tasks to archive.txt
 
+**Other options:**
+  -d <dirname>   : name of directory to work in
+                   Useful to create aliases for other directories
+
+
+**Other settings:**
+
+DEFAULT_ACTION  : action to run, if none mentioned. default is 'list'.
 
 Note: the end of todoapp.sh will contain the latest
 actions and options that may not have been updated here.
