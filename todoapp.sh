@@ -28,10 +28,10 @@ COLOR_SCHEME=1 # colrize on priority, 2 is status
 
 FULLAPPNAME="$0"
 APPNAME=$( basename $0 )
-VERSION="2.0.0"
+VERSION="2.2.5"
 VERBOSE_FLAG=0
 FORCE_FLAG=0
-DATE="2009-12-16"
+DATE="2009-12-25"
 AUTHOR="rkumar"
 today=$( date '+%Y-%m-%d' )
 DELIM=$'\t'
@@ -154,7 +154,6 @@ item_or_sub_exists ()
 die ()
 {
    message="$1"  # rem _
-   # no longer sending to stderr since it creates problems in unit test framework
    echo "$message" 1>&2
    exit 1
 }
@@ -223,6 +222,15 @@ list ()
    items=$( grep "$regex" $TODO_FILE )
    [[ ! -z "$project" ]] && { items=$( echo "$items" | grep "+${project}" ) ; }
    [[ ! -z "$component" ]] && { items=$( echo "$items" | grep "@${component}" ) ; }
+   [[ ! -z "$priority" ]] && { 
+      if [[ $priority = "any" ]]; then
+         priority="A-Z"
+      fi
+         # the extra [] allows use to pass 2 or more priorities such as AB or even
+         #+ ^A.
+         items=$( echo "$items" | grep "([${priority}])" ) ; 
+   }
+
 
    # all remaining args are used to grep
    # if arg is preceded by hyphen, then search inverse (not matching).
@@ -1022,7 +1030,8 @@ case $action in
       priority "$@" ;;
    "del" | "delete")
       BAKFILE="deltodo.txt"
-      delete "$@" ;;
+      delete "$@" 
+      cleanup;;
    "dep" | "depri")
       depri "$@" ;;
    "addsub" | "subadd")
@@ -1033,7 +1042,8 @@ case $action in
    "tag" )
       tag "$@" ;;
    "renum" | "renumber" )
-      renumber "$@" ;;
+      renumber "$@" 
+      cleanup;;
    "cu" | "copyunder" )
       copyunder "$@" ;;
    "edit")

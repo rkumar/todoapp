@@ -16,12 +16,13 @@ Based on bash.
 
 "This software blew my pants off!!!!"
 
-"Absolutely frivolous."
+"Downright frivolous."
 
 
 ## License
 
-Under GNU GPL License
+Under GNU GPL License  
+
 Written by rkumar.
 
 ## Usage
@@ -59,6 +60,8 @@ Written by rkumar.
      --show-all - show all tasks (default)
      -P | --project <name> - show for this project only
      -C | --component <name> - show for this component only
+     -p | --priority <name> - show for this priority 
+        examples: -p any, -p A, -p AB, -p A-C, -p ^A
      --hide-numbering - do not show numbers on left
      --renumber - numbers top level tasks after sorting (these are temporary numbers)
 
@@ -88,9 +91,22 @@ Written by rkumar.
 
   archive
     move closed tasks to archive.txt
+    archive TASK# ...
+       archive the given tasks to archive.txt
+
+
+Note: the end of todoapp.sh will contain the latest
+actions and options that may not have been updated here.
 
 ##  Screenshots
 
 ![listing](http://i47.tinypic.com/keuetg.jpg)
 
 ![listing2](http://i47.tinypic.com/1t66v5.jpg)
+
+## Install
+
+Copy the 3 .sh files to a folder in your path, and run todoapp.sh.
+If you've pressed the download button on git, the tar should contain a makefile
+along with a tests directory. You can run `make test` and run the 80+
+tests.
