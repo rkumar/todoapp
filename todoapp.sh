@@ -39,6 +39,7 @@ TAB="	"
 SUBGAP="  "
 DATE_REGEX='[0-9]\{4\}-[0-9][0-9]-[0-9][0-9]'
 SHOW_ALL=1
+DEFAULT_ACTION="list"
 shopt -s extglob
 
 USAGE=$( printf "%s\n        %s" "$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] add <text>" \
@@ -926,6 +927,14 @@ archive ()
 ## -- getopts stuff -- ##
 while [[ $1 = -* ]]; do
 case "$1" in                    # remove _
+   -d) dir=$2
+      shift 2
+      if [ -d "$dir" ]; then
+         cd "$dir"
+      else
+         die "$dir: no such directory"
+      fi
+   ;;
    -A|--show-all)
       # option for list. to show all records, even completed (justin case default changes later)
       SHOW_ALL=1
@@ -1017,7 +1026,7 @@ esac
 done
 action=$( echo "$1" | tr 'A-Z' 'a-z' )
 shift
-
+[[ -z "$action" ]] && {  action="$DEFAULT_ACTION"; }
 case $action in
    "list")
       check_file
