@@ -23,6 +23,7 @@ TODO_FILE="TODO2.txt"
 ARCHIVE_FILE="oldtodo.txt"
 COLORIZE=1   # if you want colored output, else comment out
 COLOR_SCHEME=1 # colrize on priority, 2 is status
+DEFAULT_ACTION="list"
 # COLORIZE requires external file colors.sh in PATH
 # get_serial_number required in path
 
@@ -39,7 +40,6 @@ TAB="	"
 SUBGAP="  "
 DATE_REGEX='[0-9]\{4\}-[0-9][0-9]-[0-9][0-9]'
 SHOW_ALL=1
-DEFAULT_ACTION="list"
 shopt -s extglob
 
 USAGE=$( printf "%s\n        %s" "$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] add <text>" \
@@ -279,6 +279,7 @@ list ()
       s/${DEL}\[@\]/${DEL}${COLOR_GREEN}[@]${COLOR_DEFAULT}/g; \
       s/${DEL}\[H\]/${DEL}${COLOR_RED}[H]${COLOR_DEFAULT}/g; \
       s/${DEL}\[P\]/${DEL}${COLOR_RED}[P]${COLOR_DEFAULT}/g; \
+      s/${DEL}\[1\]/${DEL}${COLOR_YELLOW}[1]${COLOR_DEFAULT}/g; \
       /\[ \] (A)/s/.*/${COLOR_YELLOW}&${COLOR_DEFAULT}/; \
       /\[ \] (B)/s/.*/${COLOR_WHITE}&${COLOR_DEFAULT}/; \
       /\[ \] (C)/s/.*/${COLOR_CYAN}&${COLOR_DEFAULT}/; \
