@@ -94,6 +94,9 @@ Written by rkumar.
     archive TASK# ...
        archive the given tasks to archive.txt
 
+   note TASK# <text>
+     add a note to a task. This could be what you actually did.
+   
 **Other options:**
   -d <dirname>   : name of directory to work in
                    Useful to create aliases for other directories
