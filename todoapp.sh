@@ -29,10 +29,10 @@ DEFAULT_ACTION="list"
 
 FULLAPPNAME="$0"
 APPNAME=$( basename $0 )
-VERSION="2.2.5"
+VERSION="2.2.6"
 VERBOSE_FLAG=0
 FORCE_FLAG=0
-DATE="2009-12-25"
+DATE="2009-12-29"
 AUTHOR="rkumar"
 today=$( date '+%Y-%m-%d' )
 DELIM=$'\t'
@@ -856,6 +856,32 @@ tag ()
 }
 
 # ---------------------------------------------------------------------------- #
+# note
+# Add a note to a task or subtask
+# Adds a note before the start date, prepended with a C-a. The C-a
+# results in a newline when printing.
+# @param   : task task id
+# @param   : text text to add
+# @return  : 0 or 1   
+# added 2009-12-29 14:43 
+# @since 2.2.6
+# ---------------------------------------------------------------------------- #
+note ()
+{
+   errmsg="Usage: $APPNAME note ITEM# <text>"
+   item="$1"  # item number 
+   text="$2"  # text to add 
+   [[ -z "$text" ]] && { echo "Error: note blank. $errmsg" 1>&2; exit 1; }
+   item_or_sub_exists "$item" "$errmsg"
+   todo=$( echo "$todo" | sed "s/ \(([0-9]\{4\}\)/ - ${text} \1/" )
+   sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
+   if [  $? -eq 0 ]; then
+      echo "$item: added note."
+   fi
+}
+
+
+# ---------------------------------------------------------------------------- #
 # guess_error
 # try to give a friendly message to user guessing what he might
 #+ have been attempting
@@ -1067,6 +1093,9 @@ case $action in
    "archive")
       BAKFILE="$ARCHIVE_FILE"
       archive "$@" ;;
+   "addnote" | "note")
+      note "$@" 
+      cleanup;;
    * )
    guess_error "$@"
    echo "Action ($action) incorrect. Actions include add, addsub, delete, list, mark, priority." 
