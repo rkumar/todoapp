@@ -94,8 +94,13 @@ Written by rkumar.
     archive TASK# ...
        archive the given tasks to archive.txt
 
-   note TASK# <text>
+  note TASK# <text>
      add a note to a task. This could be what you actually did.
+
+  clo|close <TASK>
+     shortcut to close a task
+  sta|start <TASK>
+     shortcut to start a task
    
 **Other options:**
   -d <dirname>   : name of directory to work in
