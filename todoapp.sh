@@ -1062,6 +1062,12 @@ case $action in
       add "$@" ;;
    "mark" | "status")
       status "$@" ;;
+   "sta" | "start" )
+     # short cut to start a task. Just do: todoapp.sh sta 10
+      status "$1" "start" ;;
+   "clo" | "close" )
+     # short cut to close a task. Just do: todoapp.sh clo 10
+      status "$1" "close" ;;
    "p" | "pri" )
       priority "$@" ;;
    "del" | "delete")
