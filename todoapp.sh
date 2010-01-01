@@ -873,11 +873,30 @@ note ()
    text="$2"  # text to add 
    [[ -z "$text" ]] && { echo "Error: note blank. $errmsg" 1>&2; exit 1; }
    item_or_sub_exists "$item" "$errmsg"
-   todo=$( echo "$todo" | sed "s/ \(([0-9]\{4\}\)/ - ${text} \1/" )
-   sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
+   indent=$( expr "$todo" : '^\( *\)' )
+   todo=$( echo "$todo" | sed "s/ \(([0-9]\{4\}\)/ ${indent}* ${text} \1/" )
+   [  $? -ne 0 ] && die "Error in replacement -- cannot proceed. Possibly slash in text. Try *escaping* it.";
+   #sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
+   change_line "$todo"
    if [  $? -eq 0 ]; then
       echo "$item: added note."
+   else
+      echo "Error. Pls check backup"
    fi
+}
+
+##
+## change a line in file based on lineno
+##
+change_line ()
+{
+   text="$@"
+ex - "$TODO_FILE"<<!
+${lineno}c
+$text
+.
+x
+!
 }
 
 
@@ -1100,8 +1119,8 @@ case $action in
       BAKFILE="$ARCHIVE_FILE"
       archive "$@" ;;
    "addnote" | "note")
-      note "$@" 
-      cleanup;;
+      note "$@" && cleanup
+      ;;
    * )
    guess_error "$@"
    echo "Action ($action) incorrect. Actions include add, addsub, delete, list, mark, priority." 
