@@ -39,7 +39,9 @@ DELIM=$'\t'
 TAB="	"
 SUBGAP="  "
 DATE_REGEX='[0-9]\{4\}-[0-9][0-9]-[0-9][0-9]'
-SHOW_ALL=1
+#TODO_SHOW_ALL=1
+# allowing user to set to 0 in environment
+TODO_SHOW_ALL=${TODO_SHOW_ALL:-1}
 shopt -s extglob
 
 USAGE=$( printf "%s\n        %s" "$APPNAME [--project PROJECT] [--component COMP] [--priority A-Z] add <text>" \
@@ -215,7 +217,7 @@ list ()
       sort_key="2"
    fi
    # added grep . to remove blank lines which were making sed hang
-   if [[ "$SHOW_ALL" -eq 0 ]]; then
+   if [[ "$TODO_SHOW_ALL" -eq 0 ]]; then
       regex='\[[^x]\]'
    else
       regex='.'
@@ -280,8 +282,8 @@ list ()
       s/${DEL}\[H\]/${DEL}${COLOR_RED}[H]${COLOR_DEFAULT}/g; \
       s/${DEL}\[P\]/${DEL}${COLOR_RED}[P]${COLOR_DEFAULT}/g; \
       s/${DEL}\[1\]/${DEL}${COLOR_YELLOW}[1]${COLOR_DEFAULT}/g; \
-      /\[ \] (A)/s/.*/${COLOR_YELLOW}&${COLOR_DEFAULT}/; \
-      /\[ \] (B)/s/.*/${COLOR_WHITE}&${COLOR_DEFAULT}/; \
+      /\[ \] ([A1])/s/.*/${COLOR_YELLOW}&${COLOR_DEFAULT}/; \
+      /\[ \] ([B2])/s/.*/${COLOR_WHITE}&${COLOR_DEFAULT}/; \
       /\[ \] (C)/s/.*/${COLOR_CYAN}&${COLOR_DEFAULT}/; \
       /\[ \] (D)/s/.*/${COLOR_GREEN}&${COLOR_DEFAULT}/; \
       /\[ \] ([E-Z])/s/.*/${COLOR_BROWN}&${COLOR_DEFAULT}/; \
@@ -353,17 +355,19 @@ delete ()
 priority ()
 {
    # switched order to be consistent. Now item first. Sucks, I know.
+   # 2010-01-04 11:27 adding 1 and 2 for next task (trying this out to see if it 
+   #+ looks nice, since putting next in status, spoils the sort order.
    item="$1"  # 
    newpri="$2"
    TAB="	" # tab
-   errmsg="usage: $APPNAME priority [A-Z] #item"
+   errmsg="usage: $APPNAME priority [A-Z12] #item"
    newpri=$( printf "%s\n" "$newpri" | tr 'a-z' 'A-Z' )
-   [[ "$newpri" = @([A-Z]) ]] || die "$errmsg"
+   [[ "$newpri" = @([A-Z12]) ]] || die "$errmsg"
    #validate_item "$item" "$errmsg"
    item_or_sub_exists  "$item" "$errmsg"
    # if a priority exists, remove it. Remove only main task pri
-   if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
-      todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
+   if grep -q "${TAB}\[.\] ([A-Z12])" <<< "$todo"; then
+      todo=$( echo "$todo" | sed 's/] ([A-Z12]) /] /' )
    fi
    # add new priority exists
    todo=$( echo "$todo" | sed "s/] /] ($newpri) /" )
@@ -387,8 +391,8 @@ depri ()
    # if a priority exists, remove it
    #if grep -q "\[.\] ([A-Z])" <<< "$todo"; then
    TAB="	" # tab
-   if grep -q "${TAB}\[.\] ([A-Z])" <<< "$todo"; then
-      todo=$( echo "$todo" | sed 's/] ([A-Z]) /] /' )
+   if grep -q "${TAB}\[.\] ([A-Z12])" <<< "$todo"; then
+      todo=$( echo "$todo" | sed 's/] ([A-Z12]) /] /' )
       sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
       if [  $? -eq 0 ]; then
          echo "$item: priority removed."
@@ -599,7 +603,9 @@ addsub ()
       [[ $VERBOSE_FLAG -gt 0 ]] && echo "last:$last"
       [[ -z "$last" ]] && { die "Error 454: 'last' blank"; }
       # get line number of last
-      lastchild=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*\.[0-9]*" "$TODO_FILE" | tail -1 )
+      #lastchild=$( grep -n -e "-$SUBGAP${fullitem}\.[0-9]*\.[0-9]*" "$TODO_FILE" | tail -1 )
+      # above gives wrong last child 2010-01-13 20:02 
+      lastchild=$( grep -n -e "-$SUBGAP${last}\.[0-9]*" "$TODO_FILE" | tail -1 )
       if [[ -z "$lastchild" ]]; then
          line=$( expr "$full" : '^\([0-9]\+\):' )
       else
@@ -983,12 +989,12 @@ case "$1" in                    # remove _
    ;;
    -A|--show-all)
       # option for list. to show all records, even completed (justin case default changes later)
-      SHOW_ALL=1
+      TODO_SHOW_ALL=1
       shift;;
    -x|--hide-completed)
       # option for list, to show all but completed
-      HIDE_COMPLETED=1
-      SHOW_ALL=0
+      HIDE_COMPLETED=1   # unused ?
+      TODO_SHOW_ALL=0
       shift;;
    --hide-numbering)
       # option for list, to hide numbering, since default sorts on priority which if not set
