@@ -132,7 +132,7 @@ item_exists () {
       return 1
    fi
    lineno=$( echo "$todo" | cut -d: -f1 )
-   todo=$( echo "$todo" | cut -d: -f2 )
+   todo=$( echo "$todo" | cut -d: -f2- )
    ITEM_TYPE=1
    return 0
 }
@@ -365,12 +365,15 @@ priority ()
    [[ "$newpri" = @([A-Z12]) ]] || die "$errmsg"
    #validate_item "$item" "$errmsg"
    item_or_sub_exists  "$item" "$errmsg"
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "got :$todo"
    # if a priority exists, remove it. Remove only main task pri
    if grep -q "${TAB}\[.\] ([A-Z12])" <<< "$todo"; then
       todo=$( echo "$todo" | sed 's/] ([A-Z12]) /] /' )
+      [[ $VERBOSE_FLAG -gt 0 ]] && echo "removed pri:$todo"
    fi
    # add new priority exists
    todo=$( echo "$todo" | sed "s/] /] ($newpri) /" )
+   [[ $VERBOSE_FLAG -gt 0 ]] && echo "added pri:$todo"
    sed -i.bak $lineno"s/.*/$todo/" "$TODO_FILE"
    if [  $? -eq 0 ]; then
       echo "$item: priority set to $newpri."
@@ -498,7 +501,7 @@ subtask_exists ()
       return 1
    fi
    lineno=$( echo "$todo" | cut -d: -f1 )
-   todo=$( echo "$todo" | cut -d: -f2 )
+   todo=$( echo "$todo" | cut -d: -f2- )
    ITEM_TYPE=2
    return 0
 }
